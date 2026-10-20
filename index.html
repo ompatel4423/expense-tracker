@@ -549,6 +549,126 @@
     .amount-col { text-align: right; font-size: 15px; font-weight: 600; color: #fff; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
     .empty-state { padding: 50px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
 
+    .nav-action-btn {
+      background: var(--surface-1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 6px 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .nav-action-btn:hover {
+      color: #fff;
+      border-color: var(--border-focus);
+      background: var(--surface-2);
+    }
+    .nav-action-btn:active { transform: scale(0.97); }
+    @media (max-width: 520px) {
+      .nav-btn-text { display: none; }
+      .nav-action-btn { padding: 6px 10px; }
+    }
+
+    .btn-export-csv {
+      background: var(--surface-1);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 12px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-export-csv:hover {
+      color: #fff;
+      border-color: var(--border-focus);
+      background: var(--surface-2);
+    }
+    .btn-export-csv:active { transform: scale(0.97); }
+
+    .trend-card {
+      background: var(--surface-1);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 20px 14px;
+      margin-bottom: 24px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+    }
+    .trend-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .trend-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .trend-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+    }
+    .trend-chart-container {
+      width: 100%;
+      height: 115px;
+      position: relative;
+    }
+    .trend-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .trend-bar {
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .trend-bar:hover {
+      opacity: 0.85;
+    }
+    .sub-item-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .sub-item-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
     #toast {
       position: fixed; bottom: max(24px, env(safe-area-inset-bottom)); right: 20px;
       background: #1e2230; border: 1px solid var(--border-focus);
@@ -582,6 +702,10 @@
       </div>
 
       <div class="nav-actions">
+        <button class="nav-action-btn" onclick="openSubscriptionsModal()" title="View Recurring Subscriptions">
+          <span>🔁</span>
+          <span class="nav-btn-text">Subscriptions</span>
+        </button>
         <div class="telemetry-pill">
           <div class="status-dot"></div>
           <span>Live</span>
@@ -708,6 +832,24 @@
         </div>
       </div>
     </section>
+ 
+    <!-- 7-Day Spending Velocity & Trend Card -->
+    <section class="trend-card" id="trend-section">
+      <div class="trend-header">
+        <div class="trend-title">
+          <span>📊</span>
+          <span>7-Day Spending Velocity</span>
+        </div>
+        <div id="trend-summary-pill" class="trend-pill">
+          <span>7-Day Avg: ₹0/day</span>
+        </div>
+      </div>
+      <div class="trend-chart-container">
+        <svg id="trend-svg" class="trend-svg" viewBox="0 0 520 125" preserveAspectRatio="none">
+          <!-- Dynamic bars rendered via render7DayTrendChart() -->
+        </svg>
+      </div>
+    </section>
 
     <!-- Controls Strip -->
     <div class="controls-strip">
@@ -730,6 +872,10 @@
         <select id="month-selector" class="select-pill" onchange="onCustomMonthChanged(this.value)">
           <option value="">Month Archive...</option>
         </select>
+        <button id="btn-export-csv" class="btn-export-csv" onclick="exportCurrentLedgerCSV()" title="Export filtered transactions to CSV">
+          <span>📥</span>
+          <span>Export CSV</span>
+        </button>
       </div>
     </div>
 
@@ -826,6 +972,38 @@
         <input type="checkbox" id="modal-remember-merchant" checked style="accent-color:var(--crimson); width:15px; height:15px;">
         <span>Always apply to this merchant's future transactions</span>
       </label>
+    </div>
+  </div>
+
+  <!-- Subscriptions Hub Modal -->
+  <div id="subs-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)closeSubscriptionsModal()">
+    <div style="background:#10131b; border:1px solid rgba(255,255,255,0.14); border-radius:24px; max-width:440px; width:100%; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.85); max-height:85vh; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">🔁</span>
+          <h3 style="font-size:17px; font-weight:700; color:#fff; letter-spacing:-0.01em;">Active Subscriptions</h3>
+        </div>
+        <button onclick="closeSubscriptionsModal()" style="background:rgba(255,255,255,0.08); border:none; color:#8b92a5; width:30px; height:30px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+
+      <!-- Burn summary banner -->
+      <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:14px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600; letter-spacing:0.04em;">Monthly Commitment</div>
+          <div id="subs-total-amount" style="font-size:24px; font-weight:700; color:#fff; margin-top:2px;">₹0.00</div>
+        </div>
+        <div id="subs-count-tag" style="font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:rgba(56, 189, 248, 0.15); color:var(--cyan); border:1px solid rgba(56, 189, 248, 0.3);">
+          0 Active
+        </div>
+      </div>
+
+      <div id="subs-list-container" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px; padding-right:2px; max-height:360px;">
+        <!-- Injected subscription cards -->
+      </div>
+
+      <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07); font-size:11px; color:var(--text-dim); text-align:center;">
+        Detected automatically from your Axis Bank AutoPay &amp; Card statements.
+      </div>
     </div>
   </div>
 
@@ -1713,6 +1891,8 @@
         ind.textContent = 'Click a card to filter';
       }
 
+      render7DayTrendChart();
+
       document.getElementById('ledger-count-label').textContent = `Transactions (${filtered.length})`;
       const stream = document.getElementById('ledger-stream');
 
@@ -1871,7 +2051,298 @@
       return (str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
     }
 
-    
+    // =========================================================================
+    // FEATURE 1: SMART RECURRING SUBSCRIPTIONS HUB
+    // =========================================================================
+    const KNOWN_SUBSCRIPTION_SERVICES = [
+      { id: 'apple', name: 'Apple Services', icon: '🍎', match: /apple|itunes|icloud/i },
+      { id: 'youtube', name: 'YouTube Premium', icon: '▶️', match: /youtube|yt\s*premium/i },
+      { id: 'equalai', name: 'Equal AI', icon: '🤖', match: /equal\s*ai|equalai/i },
+      { id: 'google', name: 'Google One / Workspace', icon: '🌐', match: /google\s*(storage|one|cloud|workspace)?|play\s*store/i },
+      { id: 'netflix', name: 'Netflix', icon: '🍿', match: /netflix/i },
+      { id: 'spotify', name: 'Spotify Music', icon: '🎵', match: /spotify/i },
+      { id: 'prime', name: 'Amazon Prime', icon: '📦', match: /amazon\s*prime|prime\s*video/i },
+      { id: 'hotstar', name: 'Disney+ Hotstar', icon: '⭐', match: /hotstar|disney/i },
+      { id: 'chatgpt', name: 'ChatGPT / OpenAI', icon: '🧠', match: /openai|chatgpt/i },
+      { id: 'cursor', name: 'Cursor AI', icon: '⚡', match: /cursor/i },
+      { id: 'github', name: 'GitHub Copilot / Sub', icon: '🐙', match: /github/i },
+      { id: 'patreon', name: 'Patreon', icon: '🎨', match: /patreon/i }
+    ];
+
+    function formatSubDate(dateStr) {
+      if (!dateStr) return '';
+      const parts = String(dateStr).split('-');
+      if (parts.length !== 3) return dateStr;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1] || parts[1]} ${parts[0]}`;
+    }
+
+    function detectSubscriptions(transactions) {
+      if (!transactions || !Array.isArray(transactions)) return { items: [], totalCommitment: 0 };
+      const groups = {};
+
+      transactions.forEach(t => {
+        const m = t.merchant || '';
+        let matched = KNOWN_SUBSCRIPTION_SERVICES.find(s => s.match.test(m));
+        if (!matched && /autopay|e-mandate|sihub|mandate|recurring|standing\s*instruction/i.test(m)) {
+          const normKey = m.toLowerCase().replace(/[^a-z0-9]/g, '');
+          matched = { id: normKey, name: m, icon: '🔁' };
+        }
+        if (matched) {
+          if (!groups[matched.id]) {
+            groups[matched.id] = { meta: matched, txs: [] };
+          }
+          groups[matched.id].txs.push(t);
+        }
+      });
+
+      const todayParts = (rawData && rawData.todayStr) ? rawData.todayStr.split('-').map(Number) : null;
+      const baseToday = todayParts ? new Date(todayParts[0], todayParts[1] - 1, todayParts[2]) : new Date();
+
+      const items = Object.values(groups).map(g => {
+        g.txs.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+        const latest = g.txs[0];
+        const amount = Number(latest.amount) || 0;
+
+        // Project next renewal date (+1 month)
+        const parts = latest.date.split('-').map(Number);
+        const renewDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        renewDate.setMonth(renewDate.getMonth() + 1);
+
+        const diffMs = renewDate.getTime() - baseToday.getTime();
+        const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        let statusText = '';
+        let isUrgent = false;
+        if (daysLeft < 0) {
+          statusText = 'Renewal due';
+          isUrgent = true;
+        } else if (daysLeft === 0) {
+          statusText = 'Renews today';
+          isUrgent = true;
+        } else if (daysLeft === 1) {
+          statusText = 'Renews tomorrow';
+          isUrgent = true;
+        } else if (daysLeft <= 4) {
+          statusText = `Renews in ${daysLeft} days (Due soon)`;
+          isUrgent = true;
+        } else {
+          statusText = `Renews in ${daysLeft} days`;
+        }
+
+        const yyyy = renewDate.getFullYear();
+        const mm = String(renewDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(renewDate.getDate()).padStart(2, '0');
+        const nextDateStr = `${yyyy}-${mm}-${dd}`;
+
+        return {
+          name: g.meta.name,
+          icon: g.meta.icon,
+          amount,
+          lastDate: latest.date,
+          nextDateStr,
+          nextDateFormatted: formatSubDate(nextDateStr),
+          lastDateFormatted: formatSubDate(latest.date),
+          daysLeft,
+          statusText,
+          isUrgent,
+          card: latest.card || 'Card / AutoPay'
+        };
+      });
+
+      items.sort((a, b) => a.daysLeft - b.daysLeft);
+      const totalCommitment = items.reduce((sum, s) => sum + s.amount, 0);
+      return { items, totalCommitment };
+    }
+
+    function openSubscriptionsModal() {
+      const txs = (rawData && rawData.transactions) ? rawData.transactions : [];
+      const { items, totalCommitment } = detectSubscriptions(txs);
+
+      document.getElementById('subs-total-amount').textContent = `₹${totalCommitment.toFixed(2)}`;
+      document.getElementById('subs-count-tag').textContent = `${items.length} Active`;
+
+      const listContainer = document.getElementById('subs-list-container');
+      if (!listContainer) return;
+
+      if (items.length === 0) {
+        listContainer.innerHTML = `
+          <div class="empty-state" style="padding:32px 10px;">
+            <div style="font-size:28px; margin-bottom:8px;">🔍</div>
+            <div style="font-weight:600; color:#fff;">No recurring subscriptions detected yet</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Subscriptions like YouTube, Apple, Equal AI, or Netflix will be tracked here automatically.</div>
+          </div>
+        `;
+      } else {
+        listContainer.innerHTML = items.map(sub => `
+          <div class="sub-item-card">
+            <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+              <div style="font-size:24px; width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; flex-shrink:0;">${sub.icon}</div>
+              <div style="min-width:0;">
+                <div style="font-size:14px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sub.name)}</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Last billed ${sub.lastDateFormatted} • ${escapeHtml(sub.card)}</div>
+              </div>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <div style="font-size:15px; font-weight:700; color:#fff; font-family:var(--font-mono); font-variant-numeric:tabular-nums;">₹${sub.amount.toFixed(2)}<span style="font-size:10px; color:var(--text-muted); font-weight:400;">/mo</span></div>
+              <div style="font-size:11px; font-weight:600; color:${sub.isUrgent ? 'var(--crimson)' : 'var(--cyan)'}; margin-top:2px; font-family:var(--font-mono);">${sub.statusText}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      const modal = document.getElementById('subs-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeSubscriptionsModal() {
+      const modal = document.getElementById('subs-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    // =========================================================================
+    // FEATURE 4: 7-DAY SPENDING VELOCITY & TREND CHART
+    // =========================================================================
+    function render7DayTrendChart() {
+      const svg = document.getElementById('trend-svg');
+      const pill = document.getElementById('trend-summary-pill');
+      if (!svg || !rawData || !Array.isArray(rawData.transactions)) return;
+
+      const todayParts = rawData.todayStr ? rawData.todayStr.split('-').map(Number) : null;
+      const baseToday = todayParts ? new Date(todayParts[0], todayParts[1] - 1, todayParts[2]) : new Date();
+
+      const days = [];
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(baseToday);
+        d.setDate(d.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        const isToday = (i === 0);
+        days.push({
+          dateStr,
+          label: isToday ? 'Today' : `${parseInt(dd, 10)} ${months[d.getMonth()]}`,
+          dayName: isToday ? 'Today' : dayNames[d.getDay()],
+          isToday
+        });
+      }
+
+      const dailyLimit = Number(rawData.dailyLimit) || 100;
+      let total7Day = 0;
+      days.forEach(d => {
+        const dayTxs = rawData.transactions.filter(t => t.date === d.dateStr);
+        d.spend = dayTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        d.txCount = dayTxs.length;
+        total7Day += d.spend;
+      });
+
+      const avg7Day = total7Day / 7;
+      const maxSpend = Math.max(...days.map(d => d.spend));
+      const maxVal = Math.max(maxSpend, dailyLimit, 100);
+
+      if (pill) {
+        pill.innerHTML = `<span>7-Day Avg: <strong>₹${avg7Day.toFixed(0)}</strong>/day</span>`;
+        if (avg7Day > dailyLimit) {
+          pill.style.color = 'var(--crimson)';
+          pill.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+          pill.style.background = 'rgba(244, 63, 94, 0.1)';
+        } else {
+          pill.style.color = 'var(--emerald)';
+          pill.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          pill.style.background = 'rgba(16, 185, 129, 0.1)';
+        }
+      }
+
+      const capY = Math.max(12, (92 - (dailyLimit / maxVal) * 68)).toFixed(1);
+
+      let content = `
+        <defs>
+          <linearGradient id="trendSpendGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#0284c7" stop-opacity="0.45"/>
+          </linearGradient>
+          <linearGradient id="trendBreachGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f87171" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#b91c1c" stop-opacity="0.45"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Daily Cap Baseline -->
+        <line x1="8" y1="${capY}" x2="512" y2="${capY}" stroke="rgba(244, 63, 94, 0.45)" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <text x="512" y="${Math.max(10, capY - 3)}" text-anchor="end" fill="rgba(244, 63, 94, 0.85)" font-size="9" font-family="var(--font-mono)" font-weight="600">CAP ₹${Math.round(dailyLimit)}</text>
+      `;
+
+      days.forEach((d, i) => {
+        const colCenter = (i * 74.28 + 37.14).toFixed(1);
+        const barX = (colCenter - 16).toFixed(1);
+        const barH = Math.max(d.spend > 0 ? (d.spend / maxVal) * 68 : 3, 3).toFixed(1);
+        const barY = (92 - barH).toFixed(1);
+        const isBreached = d.spend > dailyLimit;
+        const fill = d.spend === 0 ? 'rgba(255, 255, 255, 0.08)' : (isBreached ? 'url(#trendBreachGrad)' : 'url(#trendSpendGrad)');
+        const stroke = d.spend === 0 ? 'rgba(255, 255, 255, 0.06)' : (isBreached ? 'rgba(248, 113, 113, 0.7)' : 'rgba(56, 189, 248, 0.7)');
+
+        const textY = Math.max(13, barY - 4);
+        const textFill = isBreached ? '#f87171' : (d.spend > 0 ? '#fff' : '#64748b');
+
+        content += `
+          <g class="trend-bar" onclick="onCustomDateChanged('${d.dateStr}')" style="cursor:pointer;">
+            <title>${d.label} (${d.dateStr}): ₹${d.spend.toFixed(2)} (${d.txCount} txs)</title>
+            <rect x="${barX}" y="${barY}" width="32" height="${barH}" rx="5" ry="5" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+            <text x="${colCenter}" y="${textY}" text-anchor="middle" fill="${textFill}" font-size="10" font-family="var(--font-mono)" font-weight="600">₹${Math.round(d.spend)}</text>
+            <text x="${colCenter}" y="106" text-anchor="middle" fill="${d.isToday ? 'var(--cyan)' : '#cbd5e1'}" font-size="10" font-weight="${d.isToday ? '700' : '500'}">${d.label}</text>
+            <text x="${colCenter}" y="118" text-anchor="middle" fill="${d.isToday ? 'var(--cyan)' : '#64748b'}" font-size="9">${d.dayName}</text>
+          </g>
+        `;
+      });
+
+      svg.innerHTML = content;
+    }
+
+    // =========================================================================
+    // FEATURE 5: 1-CLICK CSV/EXCEL EXPORT
+    // =========================================================================
+    function exportCurrentLedgerCSV() {
+      const list = getFilteredList(false);
+      if (!list || list.length === 0) {
+        showToast('No transactions in current view to export');
+        return;
+      }
+
+      const rows = list.map(t => {
+        const cat = getCategoryForTransaction(t).label;
+        const cleanT = cleanTime(t.time) || t.time || '';
+        const merchant = String(t.merchant || '').replace(/"/g, '""');
+        const card = String(t.card || 'Axis Direct').replace(/"/g, '""');
+        const amt = Number(t.amount).toFixed(2);
+        return `"${t.date}","${cleanT}","${merchant}","${cat}","${card}",${amt}`;
+      });
+
+      // UTF-8 BOM (\uFEFF) ensures Excel opens special characters and Indian Rupee correctly
+      const csvContent = '\uFEFF' + ['"Date","Time","Merchant","Category","Account","Amount (INR)"', ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      let scopeSuffix = currentScope;
+      if (currentScope === 'custom_date') scopeSuffix = customDateFilter;
+      else if (currentScope === 'custom_month') scopeSuffix = customMonthFilter;
+      if (selectedCategory) scopeSuffix += `_${selectedCategory.toLowerCase()}`;
+
+      const dateStamp = (rawData && rawData.todayStr) ? rawData.todayStr : new Date().toISOString().slice(0, 10);
+      a.download = `Expense_Tracker_${scopeSuffix}_${dateStamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      showToast(`Exported ${list.length} transactions to CSV!`);
+    }
+
     function openLogoModal() {
       const modal = document.getElementById('logo-modal');
       const img = document.getElementById('modal-logo-img');
