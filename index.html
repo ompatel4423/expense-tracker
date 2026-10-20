@@ -717,7 +717,10 @@
       </div>
 
       <div class="date-dropdowns">
-        <input type="date" id="date-selector" class="select-pill" onchange="onCustomDateChanged(this.value)">
+        <select id="date-selector" class="select-pill" onchange="onCustomDateChanged(this.value)">
+          <option value="">Day Archive...</option>
+        </select>
+        <input type="date" id="hidden-calendar-picker" style="position:absolute; opacity:0; width:0; height:0; pointer-events:none;" onchange="onHiddenCalendarPicked(this.value)">
         <select id="month-selector" class="select-pill" onchange="onCustomMonthChanged(this.value)">
           <option value="">Month Archive...</option>
         </select>
@@ -1330,14 +1333,50 @@
         data.transactions = deduplicateClientTransactions(data.transactions);
       }
       rawData = data;
-      populateMonthDropdown(data.transactions || []);
+      populateArchiveDropdowns(data.transactions || []);
       renderLedger();
+    }
+
+    function populateArchiveDropdowns(transactions) {
+      populateDayDropdown(transactions);
+      populateMonthDropdown(transactions);
+    }
+
+    function populateDayDropdown(transactions) {
+      const select = document.getElementById('date-selector');
+      if (!select) return;
+      const set = new Set();
+      (transactions || []).forEach(t => {
+        if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
+          set.add(t.date);
+        }
+      });
+
+      const todayStr = rawData ? rawData.todayStr : '';
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      
+      let html = '<option value="">Day Archive...</option>';
+      Array.from(set).sort().reverse().forEach(dateStr => {
+        const parts = dateStr.split('-');
+        const y = parts[0];
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        const isToday = (todayStr && dateStr === todayStr);
+        const label = `${d} ${months[m] || parts[1]} ${y}${isToday ? ' (Today)' : ''}`;
+        html += `<option value="${dateStr}">${label}</option>`;
+      });
+      html += '<option value="__pick_calendar__">📅 Pick other date...</option>';
+      select.innerHTML = html;
+      if (customDateFilter) {
+        select.value = customDateFilter;
+      }
     }
 
     function populateMonthDropdown(transactions) {
       const select = document.getElementById('month-selector');
+      if (!select) return;
       const set = new Set();
-      transactions.forEach(t => {
+      (transactions || []).forEach(t => {
         if (t.date) set.add(t.date.substring(0, 7));
       });
 
@@ -1348,6 +1387,9 @@
         const label = dateObj.toLocaleString('default', { month: 'short', year: 'numeric' });
         select.innerHTML += `<option value="${ym}">${label}</option>`;
       });
+      if (customMonthFilter) {
+        select.value = customMonthFilter;
+      }
     }
 
     function applyScope(scope) {
@@ -1385,7 +1427,23 @@
     }
 
     function onCustomDateChanged(val) {
-      if (!val) return;
+      if (!val) {
+        if (currentScope === 'custom_date') {
+          applyScope('today');
+        }
+        return;
+      }
+      if (val === '__pick_calendar__') {
+        const picker = document.getElementById('hidden-calendar-picker');
+        if (picker) {
+          if (typeof picker.showPicker === 'function') {
+            try { picker.showPicker(); } catch (e) { picker.click(); }
+          } else {
+            picker.click();
+          }
+        }
+        return;
+      }
       customDateFilter = val;
       customMonthFilter = '';
       currentScope = 'custom_date';
@@ -1395,8 +1453,31 @@
       renderLedger();
     }
 
-    function onCustomMonthChanged(val) {
+    function onHiddenCalendarPicked(val) {
       if (!val) return;
+      const select = document.getElementById('date-selector');
+      let opt = select.querySelector(`option[value="${val}"]`);
+      if (!opt) {
+        const parts = val.split('-');
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const label = `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+        const newOpt = document.createElement('option');
+        newOpt.value = val;
+        newOpt.textContent = label;
+        const calOpt = select.querySelector('option[value="__pick_calendar__"]');
+        select.insertBefore(newOpt, calOpt);
+      }
+      select.value = val;
+      onCustomDateChanged(val);
+    }
+
+    function onCustomMonthChanged(val) {
+      if (!val) {
+        if (currentScope === 'custom_month') {
+          applyScope('month');
+        }
+        return;
+      }
       customMonthFilter = val;
       customDateFilter = '';
       currentScope = 'custom_month';
