@@ -5,9 +5,10 @@ A high-performance, dark-mode Progressive Web Application (PWA) for automated pe
 ---
 
 ## 🚀 Live Links & Resources
+- **Live App (Vercel)**: [expense-tracker4423.vercel.app](https://expense-tracker4423.vercel.app/)
 - **Google Sheet**: [Axis Bank Expense Tracker Sheet](https://docs.google.com/spreadsheets/d/11d93LcZgoc1fOm1TLDsjT19PK4uw7zSf4juzFaLf_ck/edit?usp=drive_link)
 - **Google Apps Script API**: `https://script.google.com/macros/s/AKfycbz4LphVWeHvjVxweBjqJ7zP4ISgzxeGiuT4zNH_vkeAYizlQG8MpRCChwfrpLEaH4yRoQ/exec`
-- **Netlify Deployment**: [zesty-nougat-65e4db.netlify.app](https://zesty-nougat-65e4db.netlify.app)
+- **Legacy Netlify Mirror**: [zesty-nougat-65e4db.netlify.app](https://zesty-nougat-65e4db.netlify.app)
 
 ---
 
