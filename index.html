@@ -42,6 +42,13 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      overscroll-behavior-x: none;
+    }
+
     body {
       background-color: var(--bg);
       color: var(--text);
@@ -50,7 +57,7 @@
       line-height: 1.5;
       min-height: 100vh;
       min-height: -webkit-fill-available;
-      overflow-x: hidden;
+      position: relative;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -68,9 +75,12 @@
       position: relative;
       z-index: 1;
       max-width: 980px;
+      width: 100%;
       margin: 0 auto;
       padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
       pointer-events: none;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
 
     .app-layout * { pointer-events: auto; }
@@ -83,9 +93,18 @@
       padding-bottom: 20px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 28px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      gap: 10px;
     }
 
-    .brand-identity { display: flex; align-items: center; gap: 12px; }
+    .brand-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
 
     .brand-mark {
       width: 38px; height: 38px;
@@ -98,9 +117,17 @@
       background: #07080c;
     }
 
-    .brand-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: #fff; }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .brand-subtitle { font-size: 12px; color: var(--text-muted); }
-    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .nav-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
     .telemetry-pill {
       display: inline-flex; align-items: center; gap: 6px;
@@ -439,6 +466,9 @@
       display: flex; flex-wrap: wrap; gap: 10px;
       align-items: center; justify-content: space-between;
       margin-bottom: 20px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .segmented-control {
@@ -447,6 +477,8 @@
       backdrop-filter: blur(16px);
       border: 1px solid var(--border);
       padding: 3px; border-radius: 10px;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .segment-tab {
@@ -455,30 +487,76 @@
       font-size: 12px; font-weight: 500;
       padding: 6px 12px; border-radius: 7px;
       cursor: pointer; transition: all 0.2s;
+      white-space: nowrap;
     }
     .segment-tab.active {
       background: var(--surface-2); color: #fff;
       box-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
 
-    .search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-input-wrap { position: relative; flex: 1; min-width: 160px; max-width: 100%; box-sizing: border-box; }
     .search-input {
       background: var(--surface-1); backdrop-filter: blur(16px);
       border: 1px solid var(--border); border-radius: 10px;
       color: #fff; font-family: inherit; font-size: 14px;
       padding: 9px 14px 9px 34px; width: 100%; outline: none;
+      box-sizing: border-box;
     }
     .search-input:focus { border-color: var(--border-focus); }
     .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 13px; }
 
-    .date-dropdowns { display: flex; gap: 8px; }
+    .date-dropdowns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
     .select-pill {
       background: var(--surface-1); backdrop-filter: blur(16px);
       border: 1px solid var(--border); border-radius: 8px;
       color: var(--text-muted); font-family: inherit; font-size: 13px;
       padding: 7px 10px; outline: none; cursor: pointer;
+      max-width: 100%;
+      box-sizing: border-box;
     }
     .select-pill option { background: #12141c; color: #fff; }
+
+    @media (max-width: 600px) {
+      .controls-strip {
+        gap: 10px;
+      }
+      .segmented-control {
+        width: 100%;
+        display: flex;
+      }
+      .segment-tab {
+        flex: 1;
+        text-align: center;
+        padding: 7px 4px;
+        font-size: 12px;
+      }
+      .search-input-wrap {
+        width: 100%;
+        min-width: 100%;
+      }
+      .date-dropdowns {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .select-pill {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 0;
+        width: calc(50% - 4px);
+      }
+      .btn-export-csv {
+        width: 100%;
+        justify-content: center;
+      }
+    }
 
     /* Prevent iOS auto-zoom on form inputs */
     @media (max-width: 768px) {
@@ -611,12 +689,17 @@
       padding: 18px 20px 14px;
       margin-bottom: 24px;
       box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
     }
     .trend-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
+      gap: 8px;
     }
     .trend-title {
       font-size: 13px;
@@ -626,6 +709,9 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .trend-pill {
       font-size: 11px;
@@ -636,16 +722,21 @@
       padding: 3px 9px;
       border-radius: 999px;
       font-family: var(--font-mono);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .trend-chart-container {
       width: 100%;
+      max-width: 100%;
       height: 115px;
       position: relative;
+      overflow: hidden;
     }
     .trend-svg {
       width: 100%;
       height: 100%;
-      overflow: visible;
+      display: block;
+      overflow: hidden;
     }
     .trend-bar {
       cursor: pointer;
@@ -663,6 +754,8 @@
       justify-content: space-between;
       align-items: center;
       transition: background 0.15s, border-color 0.15s;
+      max-width: 100%;
+      box-sizing: border-box;
     }
     .sub-item-card:hover {
       background: rgba(255, 255, 255, 0.06);
@@ -677,9 +770,20 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.6);
       transform: translateY(100px); opacity: 0;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      z-index: 100;
+      z-index: 10000;
+      max-width: calc(100vw - 40px);
+      box-sizing: border-box;
+      pointer-events: none;
     }
     #toast.show { transform: translateY(0); opacity: 1; }
+    @media (max-width: 480px) {
+      #toast {
+        right: 16px;
+        left: 16px;
+        text-align: center;
+        max-width: calc(100vw - 32px);
+      }
+    }
   </style>
 </head>
 <body>
@@ -921,8 +1025,8 @@
   </div>
 
   <!-- Interactive Category Reassignment Modal -->
-  <div id="category-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)closeCategoryModal()">
-    <div style="background:#12141c; border:1px solid rgba(255,255,255,0.15); border-radius:24px; max-width:380px; width:100%; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.8);">
+  <div id="category-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;" onclick="if(event.target===this)closeCategoryModal()">
+    <div style="background:#12141c; border:1px solid rgba(255,255,255,0.15); border-radius:24px; max-width:380px; width:100%; padding:24px; box-sizing:border-box; box-shadow:0 25px 60px rgba(0,0,0,0.8);">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
         <div>
           <div style="font-size:11px; font-weight:700; color:var(--crimson); letter-spacing:0.08em; text-transform:uppercase;">Reclassify Transaction</div>
@@ -976,8 +1080,8 @@
   </div>
 
   <!-- Subscriptions Hub Modal -->
-  <div id="subs-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)closeSubscriptionsModal()">
-    <div style="background:#10131b; border:1px solid rgba(255,255,255,0.14); border-radius:24px; max-width:440px; width:100%; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.85); max-height:85vh; display:flex; flex-direction:column;">
+  <div id="subs-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;" onclick="if(event.target===this)closeSubscriptionsModal()">
+    <div style="background:#10131b; border:1px solid rgba(255,255,255,0.14); border-radius:24px; max-width:440px; width:100%; padding:24px; box-sizing:border-box; box-shadow:0 25px 60px rgba(0,0,0,0.85); max-height:85vh; display:flex; flex-direction:column;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:20px;">🔁</span>
