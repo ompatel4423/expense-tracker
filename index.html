@@ -507,8 +507,13 @@
       display: grid; grid-template-columns: 2fr 1.2fr 1fr;
       align-items: center; padding: 16px 20px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      transition: background-color 0.15s;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+      cursor: pointer;
+      user-select: none;
     }
+    .tx-row:hover { background-color: rgba(255, 255, 255, 0.05); }
+    .tx-row:active { background-color: rgba(255, 255, 255, 0.08); transform: scale(0.995); }
+    .tx-row:last-child { border-bottom: none; }
     @media (max-width: 480px) {
       .tx-row {
         grid-template-columns: 1.8fr 1fr;
@@ -521,8 +526,14 @@
         margin-left: 48px;
       }
     }
-    .tx-row:active { background-color: rgba(255, 255, 255, 0.05); }
-    .tx-row:last-child { border-bottom: none; }
+    .category-choice-btn:hover {
+      background: rgba(255, 255, 255, 0.09) !important;
+      border-color: rgba(255, 255, 255, 0.28) !important;
+      transform: translateY(-1px);
+    }
+    .category-choice-btn:active {
+      transform: scale(0.98);
+    }
 
     .merchant-col { display: flex; align-items: center; gap: 12px; }
     .category-avatar {
@@ -751,6 +762,61 @@
       </div>
 
       <button onclick="closeLogoModal()" style="width:100%; padding:12px; border-radius:12px; background:rgba(255,255,255,0.08); color:#8b92a5; border:1px solid rgba(255,255,255,0.1); font-weight:500; font-size:13px; cursor:pointer;">Close</button>
+    </div>
+  </div>
+
+  <!-- Interactive Category Reassignment Modal -->
+  <div id="category-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)closeCategoryModal()">
+    <div style="background:#12141c; border:1px solid rgba(255,255,255,0.15); border-radius:24px; max-width:380px; width:100%; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.8);">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+        <div>
+          <div style="font-size:11px; font-weight:700; color:var(--crimson); letter-spacing:0.08em; text-transform:uppercase;">Reclassify Transaction</div>
+          <h3 id="cat-modal-merchant" style="font-size:17px; font-weight:700; color:#fff; margin-top:3px; word-break:break-word;">Merchant</h3>
+          <div id="cat-modal-meta" style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px;">-₹0.00 • Date</div>
+        </div>
+        <button onclick="closeCategoryModal()" style="background:rgba(255,255,255,0.08); border:none; color:#8b92a5; width:30px; height:30px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+
+      <p style="font-size:13px; color:#8b92a5; margin-bottom:14px;">Assign this expense to a budget filter:</p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+        <button type="button" class="category-choice-btn" data-cat="Dining" onclick="applyTransactionCategory('Dining')" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:12px 10px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s ease;">
+          <span style="font-size:22px;">🍽️</span>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:#fff;">Dining</div>
+            <div style="font-size:10px; color:#8b92a5;">Food & Cafes</div>
+          </div>
+        </button>
+
+        <button type="button" class="category-choice-btn" data-cat="Shopping" onclick="applyTransactionCategory('Shopping')" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:12px 10px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s ease;">
+          <span style="font-size:22px;">🛒</span>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:#fff;">Shopping</div>
+            <div style="font-size:10px; color:#8b92a5;">Retail & Orders</div>
+          </div>
+        </button>
+
+        <button type="button" class="category-choice-btn" data-cat="Transport" onclick="applyTransactionCategory('Transport')" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:12px 10px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s ease;">
+          <span style="font-size:22px;">🚗</span>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:#fff;">Transport</div>
+            <div style="font-size:10px; color:#8b92a5;">Fuel & Cabs</div>
+          </div>
+        </button>
+
+        <button type="button" class="category-choice-btn" data-cat="Utilities" onclick="applyTransactionCategory('Utilities')" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:12px 10px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s ease;">
+          <span style="font-size:22px;">⚡</span>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:#fff;">Utilities</div>
+            <div style="font-size:10px; color:#8b92a5;">Bills & Subs</div>
+          </div>
+        </button>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:#cbd5e1; cursor:pointer; padding:8px 0; border-top:1px solid rgba(255,255,255,0.08);">
+        <input type="checkbox" id="modal-remember-merchant" checked style="accent-color:var(--crimson); width:15px; height:15px;">
+        <span>Always apply to this merchant's future transactions</span>
+      </label>
     </div>
   </div>
 
@@ -1198,6 +1264,75 @@
       renderLedger();
     }
 
+    const CATEGORY_MAP = {
+      Dining: { icon: '🍽️', label: 'Dining' },
+      Shopping: { icon: '🛒', label: 'Shopping' },
+      Transport: { icon: '🚗', label: 'Transport' },
+      Utilities: { icon: '⚡', label: 'Utilities' }
+    };
+
+    function getCustomCategoryOverrides() {
+      try {
+        const val = localStorage.getItem('expense_tracker_category_overrides_v2');
+        return val ? JSON.parse(val) : { merchants: {}, txs: {} };
+      } catch(e) {
+        return { merchants: {}, txs: {} };
+      }
+    }
+
+    function saveCustomCategoryOverrides(overrides) {
+      try {
+        localStorage.setItem('expense_tracker_category_overrides_v2', JSON.stringify(overrides));
+      } catch(e) {}
+    }
+
+    function getCategoryForTransaction(t) {
+      if (!t) return CATEGORY_MAP.Dining;
+      const overrides = getCustomCategoryOverrides();
+      const txKey = `${t.date}_${t.time || ''}_${t.amount}_${t.merchant}`;
+      if (overrides.txs && overrides.txs[txKey] && CATEGORY_MAP[overrides.txs[txKey]]) {
+        return CATEGORY_MAP[overrides.txs[txKey]];
+      }
+      const mUpper = (t.merchant || '').toUpperCase().trim();
+      if (overrides.merchants && overrides.merchants[mUpper] && CATEGORY_MAP[overrides.merchants[mUpper]]) {
+        return CATEGORY_MAP[overrides.merchants[mUpper]];
+      }
+      return inferCategory(t.merchant);
+    }
+
+    function cleanTime(timeStr) {
+      if (!timeStr) return '';
+      const match = String(timeStr).match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+      if (!match) return String(timeStr).substring(0, 8);
+      let h = parseInt(match[1], 10);
+      const m = match[2];
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${m} ${ampm}`;
+    }
+
+    function formatDisplayDateTime(dateStr, timeStr, todayStr) {
+      const cleanT = cleanTime(timeStr);
+      if (!dateStr) return cleanT;
+
+      let formattedD = dateStr;
+      try {
+        const parts = String(dateStr).split('-');
+        if (parts.length === 3) {
+          const monthIdx = parseInt(parts[1], 10) - 1;
+          const day = parseInt(parts[2], 10);
+          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          if (todayStr && dateStr === todayStr) {
+            formattedD = 'Today';
+          } else {
+            formattedD = `${day} ${months[monthIdx] || parts[1]}`;
+          }
+        }
+      } catch(e) {}
+
+      return cleanT ? `${formattedD} • ${cleanT}` : formattedD;
+    }
+
     function getFilteredList(ignoreCategoryFilter = false) {
       const todayStr = rawData.todayStr;
       const currentMonthStr = todayStr ? todayStr.substring(0, 7) : '';
@@ -1216,7 +1351,7 @@
       }
 
       if (!ignoreCategoryFilter && selectedCategory) {
-        list = list.filter(t => inferCategory(t.merchant).label === selectedCategory);
+        list = list.filter(t => getCategoryForTransaction(t).label === selectedCategory);
       }
 
       if (searchQuery) {
@@ -1307,7 +1442,7 @@
       const catTotals = { Dining: { sum: 0, count: 0 }, Shopping: { sum: 0, count: 0 }, Transport: { sum: 0, count: 0 }, Utilities: { sum: 0, count: 0 } };
       
       periodList.forEach(t => {
-        const c = inferCategory(t.merchant).label;
+        const c = getCategoryForTransaction(t).label;
         if (catTotals[c]) {
           catTotals[c].sum += (Number(t.amount) || 0);
           catTotals[c].count++;
@@ -1346,22 +1481,75 @@
         return;
       }
 
-      stream.innerHTML = filtered.map(t => {
-        const cat = inferCategory(t.merchant);
+      stream.innerHTML = filtered.map((t, idx) => {
+        const cat = getCategoryForTransaction(t);
+        const displayDateTime = formatDisplayDateTime(t.date, t.time, rawData.todayStr);
         return `
-          <div class="tx-row">
+          <div class="tx-row" onclick="openCategoryModal(${idx})" title="Click to change category">
             <div class="merchant-col">
               <div class="category-avatar">${cat.icon}</div>
               <div>
                 <div class="merchant-name">${escapeHtml(t.merchant)}</div>
-                <div class="merchant-ref">${cat.label} • ${escapeHtml(t.card || 'Axis Direct')}</div>
+                <div class="merchant-ref">${cat.label} • ${escapeHtml(t.card || 'Axis Direct')} <span style="font-size:10px; opacity:0.6; margin-left:3px;">✎</span></div>
               </div>
             </div>
-            <div class="timestamp-col">${t.date} ${t.time ? '• ' + t.time : ''}</div>
+            <div class="timestamp-col">${displayDateTime}</div>
             <div class="amount-col">-₹${Number(t.amount).toFixed(2)}</div>
           </div>
         `;
       }).join('');
+    }
+
+    let activeModalTx = null;
+
+    function openCategoryModal(idx) {
+      const filtered = getFilteredList(false);
+      const t = filtered[idx];
+      if (!t) return;
+      activeModalTx = t;
+
+      const currentCat = getCategoryForTransaction(t);
+      document.getElementById('cat-modal-merchant').textContent = t.merchant || 'Unknown Merchant';
+      document.getElementById('cat-modal-meta').textContent = `-₹${Number(t.amount).toFixed(2)} • ${formatDisplayDateTime(t.date, t.time, rawData.todayStr)} • Currently ${currentCat.label}`;
+
+      document.querySelectorAll('.category-choice-btn').forEach(btn => {
+        const catName = btn.getAttribute('data-cat');
+        if (catName === currentCat.label) {
+          btn.style.borderColor = 'var(--crimson)';
+          btn.style.background = 'rgba(224, 35, 28, 0.15)';
+        } else {
+          btn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+          btn.style.background = 'rgba(255, 255, 255, 0.04)';
+        }
+      });
+
+      document.getElementById('category-modal').style.display = 'flex';
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('category-modal').style.display = 'none';
+      activeModalTx = null;
+    }
+
+    function applyTransactionCategory(newCat) {
+      if (!activeModalTx) return;
+      const t = activeModalTx;
+      const overrides = getCustomCategoryOverrides();
+      const txKey = `${t.date}_${t.time || ''}_${t.amount}_${t.merchant}`;
+      
+      overrides.txs = overrides.txs || {};
+      overrides.txs[txKey] = newCat;
+
+      const remember = document.getElementById('modal-remember-merchant').checked;
+      if (remember && t.merchant) {
+        overrides.merchants = overrides.merchants || {};
+        overrides.merchants[t.merchant.toUpperCase().trim()] = newCat;
+      }
+
+      saveCustomCategoryOverrides(overrides);
+      closeCategoryModal();
+      renderLedger();
+      showToast(`Categorized as "${newCat}"!`);
     }
 
     function inferCategory(merchant) {

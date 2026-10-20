@@ -65,7 +65,8 @@ function getDashboardData() {
     if (limits && limits[1] && !isNaN(limits[1])) monthlyLimit = Number(limits[1]);
   } catch(e) {}
   
-  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const TIMEZONE = 'Asia/Kolkata';
+  const todayStr = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
   
   let todayTotal = 0;
   let transactions = [];
@@ -80,12 +81,34 @@ function getDashboardData() {
 
       let dateStr = "";
       if (row[0] instanceof Date) {
-        dateStr = Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        dateStr = Utilities.formatDate(row[0], TIMEZONE, 'yyyy-MM-dd');
       } else {
-        dateStr = String(row[0]).substring(0, 10);
+        const str = String(row[0]).trim();
+        const dmy = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if (dmy) {
+          dateStr = `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+        } else {
+          dateStr = str.substring(0, 10);
+        }
       }
 
-      const timeStr = row[1] ? row[1].toString() : '';
+      let timeStr = "";
+      if (row[1] instanceof Date) {
+        timeStr = Utilities.formatDate(row[1], TIMEZONE, 'hh:mm a');
+      } else if (row[1]) {
+        const str = String(row[1]);
+        const m = str.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+        if (m) {
+          let h = parseInt(m[1], 10);
+          const min = m[2];
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          h = h % 12 || 12;
+          timeStr = `${h}:${min} ${ampm}`;
+        } else {
+          timeStr = str;
+        }
+      }
+
       const amount = Number(row[2]);
       const merchant = row[3] || 'Axis Debit';
 
@@ -177,9 +200,26 @@ function trackExpensesAndCheckLimit() {
       const transaction = parseAxisEmail(body, subject);
       
       if (transaction && transaction.amount > 0) {
+        const TIMEZONE = 'Asia/Kolkata';
+        let dateVal = Utilities.formatDate(date, TIMEZONE, 'yyyy-MM-dd');
+        let timeVal = Utilities.formatDate(date, TIMEZONE, 'HH:mm:ss');
+        
+        // Check if email body contains explicit Date & Time (e.g. "17-10-2026, 08:47:13 IST")
+        const dtMatch = body.match(/Date & Time:?[\s\r\n\t]*(\d{2})[-/](\d{2})[-/](\d{4}),?\s*(\d{2}):(\d{2}):(\d{2})/i);
+        if (dtMatch) {
+          dateVal = `${dtMatch[3]}-${dtMatch[2]}-${dtMatch[1]}`;
+          timeVal = `${dtMatch[4]}:${dtMatch[5]}:${dtMatch[6]}`;
+        } else {
+          // Check top-level date like "19-10-2026" or "17-10-2026"
+          const dMatch = body.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/m);
+          if (dMatch) {
+            dateVal = `${dMatch[3]}-${dMatch[2]}-${dMatch[1]}`;
+          }
+        }
+
         sheet.appendRow([
-          Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-          Utilities.formatDate(date, Session.getScriptTimeZone(), 'HH:mm:ss'),
+          dateVal,
+          timeVal,
           transaction.amount,
           transaction.merchant,
           transaction.card || 'Axis Direct',
