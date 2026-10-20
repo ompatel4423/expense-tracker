@@ -1186,7 +1186,149 @@
       }
     }
 
+    const KNOWN_SUBSCRIPTION_KEYWORDS = [
+      'apple', 'appleservic', 'youtube', 'google', 'equalai', 'equal ai',
+      'netflix', 'spotify', 'amazon prime', 'hotstar', 'patreon', 'github',
+      'openai', 'chatgpt', 'claude', 'midjourney', 'cursor', 'vercel'
+    ];
+
+    function normalizeMerchantName(name) {
+      if (!name) return '';
+      return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function parseTimeStringToMinutes(timeStr) {
+      if (!timeStr) return null;
+      const str = String(timeStr).trim();
+      const m12 = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)/i);
+      if (m12) {
+        let h = parseInt(m12[1], 10);
+        const m = parseInt(m12[2], 10);
+        const isPm = m12[4].toLowerCase() === 'pm';
+        if (isPm && h < 12) h += 12;
+        if (!isPm && h === 12) h = 0;
+        return h * 60 + m;
+      }
+      const m24 = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (m24) {
+        let h = parseInt(m24[1], 10);
+        const m = parseInt(m24[2], 10);
+        return h * 60 + m;
+      }
+      return null;
+    }
+
+    function isSubMerchant(merchant) {
+      const norm = normalizeMerchantName(merchant);
+      for (let i = 0; i < KNOWN_SUBSCRIPTION_KEYWORDS.length; i++) {
+        const kwNorm = normalizeMerchantName(KNOWN_SUBSCRIPTION_KEYWORDS[i]);
+        if (norm.includes(kwNorm) || kwNorm.includes(norm)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function areClientDuplicateTxs(tx1, tx2) {
+      const amt1 = Number(tx1.amount);
+      const amt2 = Number(tx2.amount);
+      if (isNaN(amt1) || isNaN(amt2) || Math.abs(amt1 - amt2) > 0.01) return false;
+      if (tx1.date !== tx2.date) return false;
+
+      const m1 = normalizeMerchantName(tx1.merchant);
+      const m2 = normalizeMerchantName(tx2.merchant);
+
+      let merchantMatches = false;
+      if (m1 === m2) {
+        merchantMatches = true;
+      } else if (m1.length >= 4 && m2.length >= 4) {
+        if (m1.includes(m2) || m2.includes(m1)) {
+          merchantMatches = true;
+        } else {
+          let prefixLen = 0;
+          const minLen = Math.min(m1.length, m2.length);
+          while (prefixLen < minLen && m1[prefixLen] === m2[prefixLen]) prefixLen++;
+          if (prefixLen >= 5) merchantMatches = true;
+        }
+      }
+
+      if (!merchantMatches) {
+        for (let i = 0; i < KNOWN_SUBSCRIPTION_KEYWORDS.length; i++) {
+          const kwNorm = normalizeMerchantName(KNOWN_SUBSCRIPTION_KEYWORDS[i]);
+          if (m1.includes(kwNorm) && m2.includes(kwNorm)) {
+            merchantMatches = true;
+            break;
+          }
+        }
+      }
+
+      const isGen1 = /^(axis|axisdebit|creditcard|axistransaction)$/i.test(m1);
+      const isGen2 = /^(axis|axisdebit|creditcard|axistransaction)$/i.test(m2);
+      if ((isGen1 && !isGen2) || (isGen2 && !isGen1)) {
+        const t1 = parseTimeStringToMinutes(tx1.time);
+        const t2 = parseTimeStringToMinutes(tx2.time);
+        if (t1 !== null && t2 !== null && Math.abs(t1 - t2) <= 15) {
+          merchantMatches = true;
+        }
+      }
+
+      if (!merchantMatches) return false;
+
+      const t1 = parseTimeStringToMinutes(tx1.time);
+      const t2 = parseTimeStringToMinutes(tx2.time);
+
+      if (t1 !== null && t2 !== null) {
+        const diff = Math.abs(t1 - t2);
+        if (diff <= 20) return true;
+        if (isSubMerchant(tx1.merchant) || isSubMerchant(tx2.merchant)) return true;
+        return false;
+      }
+
+      if (isSubMerchant(tx1.merchant) || isSubMerchant(tx2.merchant)) return true;
+      return true;
+    }
+
+    function pickBetterClientTx(tx1, tx2) {
+      let score1 = 0;
+      let score2 = 0;
+      const m1 = tx1.merchant || '';
+      const m2 = tx2.merchant || '';
+      if (m1.length > m2.length) score1 += 2;
+      if (m2.length > m1.length) score2 += 2;
+      if (/SERVIC$/i.test(m1)) score1 -= 3;
+      if (/SERVIC$/i.test(m2)) score2 -= 3;
+      if (/XX\d{4}/i.test(tx1.card || '')) score1 += 3;
+      if (/XX\d{4}/i.test(tx2.card || '')) score2 += 3;
+      if (tx1.time && tx1.time.length >= 5) score1 += 1;
+      if (tx2.time && tx2.time.length >= 5) score2 += 1;
+      return score2 > score1 ? tx2 : tx1;
+    }
+
+    function deduplicateClientTransactions(txList) {
+      if (!txList || txList.length <= 1) return txList || [];
+      const toSkip = new Set();
+      const clean = [];
+
+      for (let i = 0; i < txList.length; i++) {
+        if (toSkip.has(i)) continue;
+        let currentBest = txList[i];
+
+        for (let j = i + 1; j < txList.length; j++) {
+          if (toSkip.has(j)) continue;
+          if (areClientDuplicateTxs(currentBest, txList[j])) {
+            toSkip.add(j);
+            currentBest = pickBetterClientTx(currentBest, txList[j]);
+          }
+        }
+        clean.push(currentBest);
+      }
+      return clean;
+    }
+
     function onDataLoaded(data) {
+      if (data && Array.isArray(data.transactions)) {
+        data.transactions = deduplicateClientTransactions(data.transactions);
+      }
       rawData = data;
       populateMonthDropdown(data.transactions || []);
       renderLedger();

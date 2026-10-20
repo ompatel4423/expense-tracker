@@ -124,10 +124,6 @@ function getDashboardData() {
         }
       }
 
-      if (dateStr === todayStr && !isNaN(amount)) {
-        todayTotal += amount;
-      }
-
       transactions.unshift({
         date: dateStr,
         time: timeStr,
@@ -138,12 +134,21 @@ function getDashboardData() {
     }
   }
 
+  // Deduplicate transactions (e.g. YouTube ₹89, Apple ₹249, Equal AI duplicate bank notifications)
+  const cleanTransactions = deduplicateTransactionsList(transactions);
+  for (let i = 0; i < cleanTransactions.length; i++) {
+    const t = cleanTransactions[i];
+    if (t.date === todayStr && !isNaN(t.amount)) {
+      todayTotal += t.amount;
+    }
+  }
+
   const result = {
     todayTotal: todayTotal,
     dailyLimit: dailyLimit,
     monthlyLimit: monthlyLimit,
     todayStr: todayStr,
-    transactions: transactions
+    transactions: cleanTransactions
   };
 
   try {
@@ -187,9 +192,46 @@ function trackExpensesAndCheckLimit() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   initializeSheetHeaders(sheet);
   
+  const TIMEZONE = 'Asia/Kolkata';
   const processedLabel = getOrCreateLabel(CONFIG.PROCESSED_LABEL);
   const threads = GmailApp.search(CONFIG.GMAIL_SEARCH_QUERY, 0, 25);
   let newTransactionsCount = 0;
+
+  // Load recent rows from the sheet to detect and prevent duplicate bank alerts
+  const recentRows = [];
+  const totalRows = sheet.getLastRow();
+  if (totalRows > 1) {
+    const startRow = Math.max(2, totalRows - 120);
+    const numRows = totalRows - startRow + 1;
+    const colCount = Math.min(sheet.getLastColumn(), 6);
+    const sheetVals = sheet.getRange(startRow, 1, numRows, Math.max(colCount, 6)).getValues();
+    for (let r = 0; r < sheetVals.length; r++) {
+      const row = sheetVals[r];
+      if (!row[0]) continue;
+      let dStr = "";
+      if (row[0] instanceof Date) {
+        dStr = Utilities.formatDate(row[0], TIMEZONE, 'yyyy-MM-dd');
+      } else {
+        const str = String(row[0]).trim();
+        const dmy = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if (dmy) {
+          dStr = `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+        } else {
+          dStr = str.substring(0, 10);
+        }
+      }
+      let tStr = row[1] instanceof Date ? Utilities.formatDate(row[1], TIMEZONE, 'HH:mm:ss') : String(row[1] || '');
+      recentRows.push({
+        rowIndex: startRow + r,
+        date: dStr,
+        time: tStr,
+        amount: Number(row[2]),
+        merchant: String(row[3] || ''),
+        card: String(row[4] || ''),
+        subject: String(row[5] || '')
+      });
+    }
+  }
 
   for (const thread of threads) {
     const messages = thread.getMessages();
@@ -200,7 +242,6 @@ function trackExpensesAndCheckLimit() {
       const transaction = parseAxisEmail(body, subject);
       
       if (transaction && transaction.amount > 0) {
-        const TIMEZONE = 'Asia/Kolkata';
         let dateVal = Utilities.formatDate(date, TIMEZONE, 'yyyy-MM-dd');
         let timeVal = Utilities.formatDate(date, TIMEZONE, 'HH:mm:ss');
         
@@ -217,15 +258,65 @@ function trackExpensesAndCheckLimit() {
           }
         }
 
-        sheet.appendRow([
-          dateVal,
-          timeVal,
-          transaction.amount,
-          transaction.merchant,
-          transaction.card || 'Axis Direct',
-          subject
-        ]);
-        newTransactionsCount++;
+        const candidateTx = {
+          date: dateVal,
+          time: timeVal,
+          amount: transaction.amount,
+          merchant: transaction.merchant,
+          card: transaction.card || 'Axis Direct',
+          subject: subject
+        };
+
+        // Check for duplicates among recent rows or rows added in this batch
+        let existingMatch = null;
+        for (let r = 0; r < recentRows.length; r++) {
+          if (areDuplicateTransactions(recentRows[r], candidateTx)) {
+            existingMatch = recentRows[r];
+            break;
+          }
+        }
+
+        if (existingMatch) {
+          // Duplicate alert detected! Check if new candidateTx provides better details
+          const better = pickBetterTransaction(existingMatch, candidateTx);
+          if (better === candidateTx) {
+            // Update the existing row with richer merchant name, card digits, etc.
+            sheet.getRange(existingMatch.rowIndex, 1, 1, 6).setValues([[
+              dateVal,
+              timeVal,
+              candidateTx.amount,
+              candidateTx.merchant,
+              candidateTx.card,
+              candidateTx.subject
+            ]]);
+            existingMatch.merchant = candidateTx.merchant;
+            existingMatch.card = candidateTx.card;
+            existingMatch.subject = candidateTx.subject;
+            existingMatch.time = candidateTx.time;
+            newTransactionsCount++;
+          }
+          // Else: existing row is already equal or higher quality; ignore redundant notification
+        } else {
+          // No duplicate found: append as a new transaction row
+          sheet.appendRow([
+            dateVal,
+            timeVal,
+            candidateTx.amount,
+            candidateTx.merchant,
+            candidateTx.card,
+            candidateTx.subject
+          ]);
+          recentRows.push({
+            rowIndex: sheet.getLastRow(),
+            date: dateVal,
+            time: timeVal,
+            amount: candidateTx.amount,
+            merchant: candidateTx.merchant,
+            card: candidateTx.card,
+            subject: candidateTx.subject
+          });
+          newTransactionsCount++;
+        }
       }
     }
     thread.addLabel(processedLabel);
@@ -461,6 +552,7 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('💳 Expense Tracker')
     .addItem('⚡ Sync Latest Emails', 'trackExpensesAndCheckLimit')
+    .addItem('🧹 Clean Up Duplicates', 'cleanDuplicateTransactions')
     .addSeparator()
     .addItem('📦 Archive Previous Years', 'autoArchivePreviousYears')
     .addToUi();
@@ -527,4 +619,268 @@ function autoArchivePreviousYears() {
   if (rowsToDelete.length > 0) {
     try { CacheService.getScriptCache().remove("dashboard_data_v1"); } catch(e) {}
   }
+}
+
+// ==========================================
+// DEDUPLICATION & MULTI-ALERT MERGE ENGINE
+// ==========================================
+
+const KNOWN_SUBSCRIPTION_KEYWORDS = [
+  'apple', 'appleservic', 'youtube', 'google', 'equalai', 'equal ai',
+  'netflix', 'spotify', 'amazon prime', 'hotstar', 'patreon', 'github',
+  'openai', 'chatgpt', 'claude', 'midjourney', 'cursor', 'vercel'
+];
+
+function normalizeMerchant(name) {
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr) return null;
+  const str = String(timeStr).trim();
+  const m12 = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)/i);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const m = parseInt(m12[2], 10);
+    const isPm = m12[4].toLowerCase() === 'pm';
+    if (isPm && h < 12) h += 12;
+    if (!isPm && h === 12) h = 0;
+    return h * 60 + m;
+  }
+  const m24 = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m24) {
+    let h = parseInt(m24[1], 10);
+    const m = parseInt(m24[2], 10);
+    return h * 60 + m;
+  }
+  return null;
+}
+
+function isSubscriptionMerchant(merchant) {
+  const norm = normalizeMerchant(merchant);
+  for (let i = 0; i < KNOWN_SUBSCRIPTION_KEYWORDS.length; i++) {
+    const kwNorm = normalizeMerchant(KNOWN_SUBSCRIPTION_KEYWORDS[i]);
+    if (norm.includes(kwNorm) || kwNorm.includes(norm)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function areDuplicateTransactions(tx1, tx2) {
+  // 1. Amount must be identical (within 0.01)
+  const amt1 = Number(tx1.amount);
+  const amt2 = Number(tx2.amount);
+  if (isNaN(amt1) || isNaN(amt2) || Math.abs(amt1 - amt2) > 0.01) {
+    return false;
+  }
+
+  // 2. Dates must match
+  if (tx1.date !== tx2.date) {
+    return false;
+  }
+
+  // 3. Merchant normalization & comparison
+  const m1 = normalizeMerchant(tx1.merchant);
+  const m2 = normalizeMerchant(tx2.merchant);
+
+  let merchantMatches = false;
+  if (m1 === m2) {
+    merchantMatches = true;
+  } else if (m1.length >= 4 && m2.length >= 4) {
+    if (m1.includes(m2) || m2.includes(m1)) {
+      merchantMatches = true;
+    } else {
+      let prefixLen = 0;
+      const minLen = Math.min(m1.length, m2.length);
+      while (prefixLen < minLen && m1[prefixLen] === m2[prefixLen]) {
+        prefixLen++;
+      }
+      if (prefixLen >= 5) {
+        merchantMatches = true;
+      }
+    }
+  }
+
+  if (!merchantMatches) {
+    for (let i = 0; i < KNOWN_SUBSCRIPTION_KEYWORDS.length; i++) {
+      const kwNorm = normalizeMerchant(KNOWN_SUBSCRIPTION_KEYWORDS[i]);
+      if (m1.includes(kwNorm) && m2.includes(kwNorm)) {
+        merchantMatches = true;
+        break;
+      }
+    }
+  }
+
+  const isGeneric1 = /^(axis|axisdebit|creditcard|axistransaction)$/i.test(m1);
+  const isGeneric2 = /^(axis|axisdebit|creditcard|axistransaction)$/i.test(m2);
+  if ((isGeneric1 && !isGeneric2) || (isGeneric2 && !isGeneric1)) {
+    const t1 = parseTimeToMinutes(tx1.time);
+    const t2 = parseTimeToMinutes(tx2.time);
+    if (t1 !== null && t2 !== null && Math.abs(t1 - t2) <= 15) {
+      merchantMatches = true;
+    }
+  }
+
+  if (!merchantMatches) {
+    return false;
+  }
+
+  // 4. Timing check
+  const t1 = parseTimeToMinutes(tx1.time);
+  const t2 = parseTimeToMinutes(tx2.time);
+
+  if (t1 !== null && t2 !== null) {
+    const diff = Math.abs(t1 - t2);
+    if (diff <= 20) {
+      return true;
+    }
+    if (isSubscriptionMerchant(tx1.merchant) || isSubscriptionMerchant(tx2.merchant)) {
+      return true;
+    }
+    return false;
+  }
+
+  if (isSubscriptionMerchant(tx1.merchant) || isSubscriptionMerchant(tx2.merchant)) {
+    return true;
+  }
+
+  return true;
+}
+
+function pickBetterTransaction(tx1, tx2) {
+  let score1 = 0;
+  let score2 = 0;
+
+  const m1 = tx1.merchant || '';
+  const m2 = tx2.merchant || '';
+
+  if (m1.length > m2.length) score1 += 2;
+  if (m2.length > m1.length) score2 += 2;
+
+  if (/SERVIC$/i.test(m1)) score1 -= 3;
+  if (/SERVIC$/i.test(m2)) score2 -= 3;
+
+  if (/XX\d{4}/i.test(tx1.card || '')) score1 += 3;
+  if (/XX\d{4}/i.test(tx2.card || '')) score2 += 3;
+
+  if (tx1.time && tx1.time.length >= 5) score1 += 1;
+  if (tx2.time && tx2.time.length >= 5) score2 += 1;
+
+  return score2 > score1 ? tx2 : tx1;
+}
+
+function deduplicateTransactionsList(txList) {
+  if (!txList || txList.length <= 1) return txList || [];
+  const toSkip = new Set();
+  const clean = [];
+
+  for (let i = 0; i < txList.length; i++) {
+    if (toSkip.has(i)) continue;
+    let currentBest = txList[i];
+
+    for (let j = i + 1; j < txList.length; j++) {
+      if (toSkip.has(j)) continue;
+      if (areDuplicateTransactions(currentBest, txList[j])) {
+        toSkip.add(j);
+        currentBest = pickBetterTransaction(currentBest, txList[j]);
+      }
+    }
+    clean.push(currentBest);
+  }
+
+  return clean;
+}
+
+function cleanDuplicateTransactions() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    ss.toast("No transactions found in sheet.", "Deduplication Complete", 5);
+    return;
+  }
+
+  const TIMEZONE = 'Asia/Kolkata';
+  const colCount = Math.min(sheet.getLastColumn(), 6);
+  const data = sheet.getRange(2, 1, lastRow - 1, Math.max(colCount, 6)).getValues();
+
+  const rows = [];
+  for (let i = 0; i < data.length; i++) {
+    const r = data[i];
+    if (!r[0]) continue;
+    let dStr = "";
+    if (r[0] instanceof Date) {
+      dStr = Utilities.formatDate(r[0], TIMEZONE, 'yyyy-MM-dd');
+    } else {
+      const str = String(r[0]).trim();
+      const dmy = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+      if (dmy) {
+        dStr = `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+      } else {
+        dStr = str.substring(0, 10);
+      }
+    }
+    let tStr = r[1] instanceof Date ? Utilities.formatDate(r[1], TIMEZONE, 'HH:mm:ss') : String(r[1] || '');
+    rows.push({
+      rowIndex: i + 2,
+      date: dStr,
+      time: tStr,
+      amount: Number(r[2]),
+      merchant: String(r[3] || ''),
+      card: String(r[4] || ''),
+      subject: String(r[5] || '')
+    });
+  }
+
+  const toDeleteRowIndices = new Set();
+  let mergedCount = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    if (toDeleteRowIndices.has(rows[i].rowIndex)) continue;
+    for (let j = i + 1; j < rows.length; j++) {
+      if (toDeleteRowIndices.has(rows[j].rowIndex)) continue;
+
+      if (areDuplicateTransactions(rows[i], rows[j])) {
+        const better = pickBetterTransaction(rows[i], rows[j]);
+        if (better === rows[j]) {
+          sheet.getRange(rows[i].rowIndex, 1, 1, 6).setValues([[
+            rows[j].date,
+            rows[j].time,
+            rows[j].amount,
+            rows[j].merchant,
+            rows[j].card,
+            rows[j].subject
+          ]]);
+          rows[i].merchant = rows[j].merchant;
+          rows[i].card = rows[j].card;
+          rows[i].subject = rows[j].subject;
+          rows[i].time = rows[j].time;
+        }
+        toDeleteRowIndices.add(rows[j].rowIndex);
+        mergedCount++;
+      }
+    }
+  }
+
+  const sortedDelete = Array.from(toDeleteRowIndices).sort((a, b) => b - a);
+  for (let d = 0; d < sortedDelete.length; d++) {
+    sheet.deleteRow(sortedDelete[d]);
+  }
+
+  try {
+    CacheService.getScriptCache().remove("dashboard_data_v1");
+  } catch(e) {}
+
+  const msg = mergedCount > 0 
+    ? `Successfully merged and removed ${mergedCount} duplicate transaction(s).`
+    : `No duplicate transactions found. Ledger is already clean!`;
+
+  ss.toast(msg, "Deduplication Complete", 6);
+  try {
+    SpreadsheetApp.getUi().alert("Deduplication Complete", msg, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch(e) {}
 }
