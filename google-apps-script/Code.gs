@@ -136,6 +136,16 @@ function getDashboardData() {
 
   // Deduplicate transactions (e.g. YouTube ₹89, Apple ₹249, Equal AI duplicate bank notifications)
   const cleanTransactions = deduplicateTransactionsList(transactions);
+
+  // If duplicate rows exist in the sheet, automatically purge them in the background
+  if (cleanTransactions.length < transactions.length) {
+    try {
+      cleanDuplicateTransactions(sheet, false);
+    } catch(e) {
+      console.warn("Auto background cleanup:", e);
+    }
+  }
+
   for (let i = 0; i < cleanTransactions.length; i++) {
     const t = cleanTransactions[i];
     if (t.date === todayStr && !isNaN(t.amount)) {
@@ -320,6 +330,13 @@ function trackExpensesAndCheckLimit() {
       }
     }
     thread.addLabel(processedLabel);
+  }
+
+  // Automatically sweep and purge duplicate notifications from sheet
+  try {
+    cleanDuplicateTransactions(sheet, false);
+  } catch(e) {
+    console.warn("Auto cleanup in sync:", e);
   }
 
   if (newTransactionsCount > 0) {
@@ -552,7 +569,7 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('💳 Expense Tracker')
     .addItem('⚡ Sync Latest Emails', 'trackExpensesAndCheckLimit')
-    .addItem('🧹 Clean Up Duplicates', 'cleanDuplicateTransactions')
+    .addItem('🧹 Clean Up Duplicates', 'menuCleanDuplicates')
     .addSeparator()
     .addItem('📦 Archive Previous Years', 'autoArchivePreviousYears')
     .addToUi();
@@ -795,13 +812,20 @@ function deduplicateTransactionsList(txList) {
   return clean;
 }
 
-function cleanDuplicateTransactions() {
+function menuCleanDuplicates() {
+  cleanDuplicateTransactions(null, true);
+}
+
+function cleanDuplicateTransactions(targetSheet, isInteractive) {
+  isInteractive = (isInteractive === true);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getActiveSheet();
+  const sheet = targetSheet || (ss ? ss.getActiveSheet() : null);
+  if (!sheet) return 0;
+
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
-    ss.toast("No transactions found in sheet.", "Deduplication Complete", 5);
-    return;
+    if (isInteractive && ss) ss.toast("No transactions found in sheet.", "Deduplication Complete", 5);
+    return 0;
   }
 
   const TIMEZONE = 'Asia/Kolkata';
@@ -871,16 +895,21 @@ function cleanDuplicateTransactions() {
     sheet.deleteRow(sortedDelete[d]);
   }
 
-  try {
-    CacheService.getScriptCache().remove("dashboard_data_v1");
-  } catch(e) {}
+  if (mergedCount > 0) {
+    try {
+      CacheService.getScriptCache().remove("dashboard_data_v1");
+    } catch(e) {}
+  }
 
-  const msg = mergedCount > 0 
-    ? `Successfully merged and removed ${mergedCount} duplicate transaction(s).`
-    : `No duplicate transactions found. Ledger is already clean!`;
+  if (isInteractive && ss) {
+    const msg = mergedCount > 0 
+      ? `Successfully merged and removed ${mergedCount} duplicate transaction(s).`
+      : `No duplicate transactions found. Ledger is already clean!`;
+    ss.toast(msg, "Deduplication Complete", 6);
+    try {
+      SpreadsheetApp.getUi().alert("Deduplication Complete", msg, SpreadsheetApp.getUi().ButtonSet.OK);
+    } catch(e) {}
+  }
 
-  ss.toast(msg, "Deduplication Complete", 6);
-  try {
-    SpreadsheetApp.getUi().alert("Deduplication Complete", msg, SpreadsheetApp.getUi().ButtonSet.OK);
-  } catch(e) {}
+  return mergedCount;
 }
