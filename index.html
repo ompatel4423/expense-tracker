@@ -591,25 +591,31 @@
     </header>
 
     <!-- Bento Grid Metrics -->
-    <section class="bento-grid">
-      <div class="bento-card">
+    <section class="bento-grid" id="bento-grid-metrics">
+      <div class="bento-card" id="bento-card-spend">
         <div class="card-label">
           <span id="scope-label">Today's Expenditure</span>
           <span id="pacing-badge" style="color: var(--emerald); font-size: 11px;">ON TRACK</span>
         </div>
         <div id="stat-spend" class="card-metric">₹0.00</div>
         
-        <div class="meter-track">
-          <div id="meter-bar" class="meter-fill" style="width: 0%;"></div>
+        <div id="meter-container">
+          <div class="meter-track">
+            <div id="meter-bar" class="meter-fill" style="width: 0%;"></div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
+            <span>Used: <strong id="percent-label" style="color: #fff;">0%</strong></span>
+            <span>Budget: <strong id="limit-label" style="color: #fff;">₹100</strong></span>
+          </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
-          <span>Used: <strong id="percent-label" style="color: #fff;">0%</strong></span>
-          <span>Budget: <strong id="limit-label" style="color: #fff;">₹100</strong></span>
+        <div id="lifetime-meta" style="display:none; margin-top: 10px; font-size: 13px; color: var(--text-muted); align-items: center; gap: 8px;">
+          <span id="lifetime-stats-text">Portfolio Telemetry</span>
         </div>
       </div>
 
-      <div class="bento-card">
+      <div class="bento-card" id="bento-card-remaining">
         <div class="card-label">
           <span>Remaining Budget</span>
           <span id="remaining-period-tag">TODAY</span>
@@ -620,7 +626,7 @@
         </div>
       </div>
 
-      <div class="bento-card">
+      <div class="bento-card" id="bento-card-control">
         <div class="card-label">
           <span id="control-card-title">Daily Budget Limit</span>
           <span id="control-period-tag">CONFIG</span>
@@ -1591,17 +1597,18 @@
       const total = filtered.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
       const isMonthly = (currentScope === 'month' || currentScope === 'custom_month');
       const isDaily = (currentScope === 'today' || currentScope === 'custom_date');
+      const isAllTime = (currentScope === 'all');
       const activeBudget = isMonthly ? (rawData.monthlyLimit || 5000) : (rawData.dailyLimit || 100);
 
       const spendEl = document.getElementById('stat-spend');
       spendEl.textContent = `₹${total.toFixed(2)}`;
       
-      const percent = Math.min(Math.round((total / activeBudget) * 100), 100);
-      document.getElementById('percent-label').textContent = `${percent}%`;
-      document.getElementById('limit-label').textContent = `₹${activeBudget.toFixed(2)}`;
-
-      const meterBar = document.getElementById('meter-bar');
-      meterBar.style.width = `${percent}%`;
+      const bentoGrid = document.getElementById('bento-grid-metrics');
+      const cardRemaining = document.getElementById('bento-card-remaining');
+      const cardControl = document.getElementById('bento-card-control');
+      const meterContainer = document.getElementById('meter-container');
+      const lifetimeMeta = document.getElementById('lifetime-meta');
+      const lifetimeStatsText = document.getElementById('lifetime-stats-text');
 
       const pacingBadge = document.getElementById('pacing-badge');
       const scopeLabel = document.getElementById('scope-label');
@@ -1609,32 +1616,50 @@
       const controlTitle = document.getElementById('control-card-title');
       const controlDesc = document.getElementById('control-card-desc');
       const thresholdInput = document.getElementById('threshold-input');
-
-      if (isMonthly) {
-        const monthName = new Date().toLocaleString('default', { month: 'long' });
-        scopeLabel.textContent = `Spent in ${monthName}`;
-        remainingTag.textContent = 'THIS MONTH';
-        controlTitle.textContent = 'Monthly Budget';
-        controlDesc.textContent = 'Set entire month budget ceiling:';
-        thresholdInput.value = rawData.monthlyLimit;
-      } else if (isDaily) {
-        scopeLabel.textContent = (currentScope === 'today') ? "Today's Expenditure" : `Spent on ${customDateFilter}`;
-        remainingTag.textContent = 'TODAY';
-        controlTitle.textContent = 'Daily Budget Limit';
-        controlDesc.textContent = 'Set daily spending limit:';
-        thresholdInput.value = rawData.dailyLimit;
-      } else {
-        scopeLabel.textContent = "Cumulative Lifetime Spend";
-        remainingTag.textContent = 'ALL TIME';
-        controlTitle.textContent = 'Daily Budget Limit';
-        controlDesc.textContent = 'Set daily spending limit:';
-        thresholdInput.value = rawData.dailyLimit;
-      }
-
+      const meterBar = document.getElementById('meter-bar');
       const remainingEl = document.getElementById('stat-remaining');
       const remainingMeta = document.getElementById('remaining-meta');
 
-      if (isDaily || isMonthly) {
+      if (isAllTime) {
+        if (bentoGrid) bentoGrid.style.gridTemplateColumns = '1fr';
+        if (cardRemaining) cardRemaining.style.display = 'none';
+        if (cardControl) cardControl.style.display = 'none';
+        if (meterContainer) meterContainer.style.display = 'none';
+        if (lifetimeMeta) {
+          lifetimeMeta.style.display = 'flex';
+          const avg = filtered.length > 0 ? (total / filtered.length) : 0;
+          lifetimeStatsText.innerHTML = `Portfolio Telemetry: <strong style="color:#fff;">${filtered.length} transactions recorded</strong> • Average Ticket: <strong style="color:#fff;">₹${avg.toFixed(2)}</strong>`;
+        }
+        scopeLabel.textContent = "Cumulative Lifetime Spend";
+        pacingBadge.textContent = 'ALL TIME';
+        pacingBadge.style.color = 'var(--cyan)';
+      } else {
+        if (bentoGrid) bentoGrid.style.gridTemplateColumns = '';
+        if (cardRemaining) cardRemaining.style.display = '';
+        if (cardControl) cardControl.style.display = '';
+        if (meterContainer) meterContainer.style.display = '';
+        if (lifetimeMeta) lifetimeMeta.style.display = 'none';
+
+        const percent = Math.min(Math.round((total / activeBudget) * 100), 100);
+        document.getElementById('percent-label').textContent = `${percent}%`;
+        document.getElementById('limit-label').textContent = `₹${activeBudget.toFixed(2)}`;
+        meterBar.style.width = `${percent}%`;
+
+        if (isMonthly) {
+          const monthName = new Date().toLocaleString('default', { month: 'long' });
+          scopeLabel.textContent = `Spent in ${monthName}`;
+          remainingTag.textContent = 'THIS MONTH';
+          controlTitle.textContent = 'Monthly Budget';
+          controlDesc.textContent = 'Set entire month budget ceiling:';
+          thresholdInput.value = rawData.monthlyLimit;
+        } else if (isDaily) {
+          scopeLabel.textContent = (currentScope === 'today') ? "Today's Expenditure" : `Spent on ${customDateFilter}`;
+          remainingTag.textContent = 'TODAY';
+          controlTitle.textContent = 'Daily Budget Limit';
+          controlDesc.textContent = 'Set daily spending limit:';
+          thresholdInput.value = rawData.dailyLimit;
+        }
+
         const remaining = activeBudget - total;
         if (remaining >= 0) {
           remainingEl.textContent = `₹${remaining.toFixed(2)}`;
@@ -1651,14 +1676,6 @@
           pacingBadge.style.color = 'var(--crimson)';
           remainingMeta.innerHTML = `<span style="color: var(--crimson);">Over budget by ₹${Math.abs(remaining).toFixed(2)}</span>`;
         }
-      } else {
-        remainingEl.textContent = `${filtered.length} txs`;
-        remainingEl.className = 'card-metric';
-        meterBar.className = 'meter-fill';
-        pacingBadge.textContent = 'PORTFOLIO';
-        pacingBadge.style.color = 'var(--text-muted)';
-        const avg = filtered.length > 0 ? (total / filtered.length) : 0;
-        remainingMeta.innerHTML = `<span>Average ticket size: ₹${avg.toFixed(2)}</span>`;
       }
 
       // Update 4 Category Cards
