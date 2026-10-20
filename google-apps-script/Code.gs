@@ -204,29 +204,35 @@ function trackExpensesAndCheckLimit() {
 function parseAxisEmail(body, subject) {
   if (!body) return null;
 
-  // 1. AutoPay Transaction (Subscriptions, Recurring debits e.g. Apple, Netflix, SIHub)
-  if (/AutoPay/i.test(body) || /AutoPay/i.test(subject)) {
-    const amtMatch = body.match(/Transaction Amount:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
-                     body.match(/(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
+  // 1. Structured Summary Email (Axis Bank Credit Card OR AutoPay transactions)
+  // Handles:
+  // - "Here's the summary of your Axis Bank Credit Card Transaction:"
+  // - "Here's the summary of your successful AutoPay transaction:"
+  // - Any email with "Transaction Amount:" and "Merchant Name:"
+  if (/summary of your.*(?:Credit Card|AutoPay|transaction)/i.test(body) || (/Transaction Amount:/i.test(body) && /Merchant Name:/i.test(body))) {
+    const amtMatch = body.match(/Transaction Amount:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+                     body.match(/(?:INR|Rs\.?)\s*([\d,]+(?:\.\d{1,2})?)/i);
     const merchMatch = body.match(/Merchant Name:?[\s\r\n\t]*([^\r\n]+)/i);
-    const cardMatch = body.match(/(?:Axis Bank Card No\.?|Card No\.?|Card ending)[\s\r\n\t]*([A-Za-z0-9]+)/i);
+    const cardMatch = body.match(/(?:Axis Bank Credit Card No\.?|Axis Bank Card No\.?|Card No\.?|Card ending)[\s\r\n\t]*([A-Za-z0-9]+)/i);
 
     if (amtMatch) {
       const amount = parseFloat(amtMatch[1].replace(/,/g, ''));
       if (!isNaN(amount) && amount > 0) {
-        const merchant = merchMatch ? merchMatch[1].trim() : 'AutoPay Debit';
+        const merchant = merchMatch ? merchMatch[1].trim() : 'Axis Transaction';
         const cardNum = cardMatch ? cardMatch[1].trim() : '';
-        const card = cardNum ? (cardNum.startsWith('XX') ? `Axis Card ${cardNum}` : `Axis Card XX${cardNum}`) : 'Axis Card';
-        return { amount: amount, merchant: merchant, card: card, type: 'AutoPay' };
+        const isCC = /Credit Card/i.test(body) || /Credit Card/i.test(subject);
+        const cardPrefix = isCC ? 'Axis CC' : 'Axis Card';
+        const card = cardNum ? (cardNum.startsWith('XX') ? `${cardPrefix} ${cardNum}` : `${cardPrefix} XX${cardNum}`) : cardPrefix;
+        return { amount: amount, merchant: merchant, card: card, type: isCC ? 'Credit Card' : 'AutoPay' };
       }
     }
   }
 
-  // 2. Credit Card Transaction Alert (Swipes, Online POS, E-commerce)
+  // 2. Inline Credit Card Transaction Alert (Swipes, Online POS, E-commerce)
   if (/Credit Card|Card no\.|ending with/i.test(body) || /Credit Card/i.test(subject)) {
-    let amtMatch = body.match(/(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})\s*(?:has been spent|was spent|spent|debited)/i) ||
-                   body.match(/(?:spent|debited)\s*(?:for|with|by)?\s*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
-                   body.match(/Transaction Amount:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
+    let amtMatch = body.match(/(?:INR|Rs\.?)\s*([\d,]+(?:\.\d{1,2})?)\s*(?:has been spent|was spent|spent|debited)/i) ||
+                   body.match(/(?:spent|debited)\s*(?:for|with|by)?\s*(?:INR|Rs\.?)\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+                   body.match(/Transaction Amount:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+(?:\.\d{1,2})?)/i);
 
     let merchMatch = body.match(/at\s+([A-Za-z0-9\s.,&'-]+?)(?:\s+on\s+|\s*\.|\s*Available|\s*Avbl|\s*Total|\s*Ref|\s*$)/i) ||
                      body.match(/Merchant Name:?[\s\r\n\t]*([^\r\n]+)/i);
