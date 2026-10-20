@@ -1354,7 +1354,7 @@
               <div class="category-avatar">${cat.icon}</div>
               <div>
                 <div class="merchant-name">${escapeHtml(t.merchant)}</div>
-                <div class="merchant-ref">${cat.label} • Axis Direct</div>
+                <div class="merchant-ref">${cat.label} • ${escapeHtml(t.card || 'Axis Direct')}</div>
               </div>
             </div>
             <div class="timestamp-col">${t.date} ${t.time ? '• ' + t.time : ''}</div>
@@ -1366,19 +1366,19 @@
 
     function inferCategory(merchant) {
       const m = (merchant || '').toUpperCase();
-      if (/HOTEL|CAFE|RESTAURANT|FOOD|SWIGGY|ZOMATO|BAKERY|TEA|COFFEE|DHABA|BIRYANI/.test(m)) {
+      if (/HOTEL|CAFE|RESTAURANT|FOOD|SWIGGY|ZOMATO|BAKERY|TEA|COFFEE|DHABA|BIRYANI|DOMINOS|MCDONALD/.test(m)) {
         return { icon: '🍽️', label: 'Dining' };
       }
-      if (/UBER|OLA|IRCTC|RAILWAY|METRO|PETROL|FUEL|HPCL|IOCL|BPCL|FASTAG/.test(m)) {
+      if (/UBER|OLA|IRCTC|RAILWAY|METRO|PETROL|FUEL|HPCL|IOCL|BPCL|FASTAG|FLIGHT|AIRWAYS/.test(m)) {
         return { icon: '🚗', label: 'Transport' };
       }
-      if (/AMAZON|FLIPKART|MART|STORE|RETAIL|SHOP|MYNTRA|ZEPTO|BLINKIT|INSTAMART/.test(m)) {
+      if (/AMAZON|FLIPKART|MART|STORE|RETAIL|SHOP|MYNTRA|ZEPTO|BLINKIT|INSTAMART|BIGBASKET|DMART/.test(m)) {
         return { icon: '🛒', label: 'Shopping' };
       }
-      if (/AIRTEL|JIO|VI|ELECTRICITY|BESCOM|BILL|RECHARGE|GAS/.test(m)) {
+      if (/AIRTEL|JIO|VI|ELECTRICITY|BESCOM|BILL|RECHARGE|GAS|APPLE|GOOGLE|NETFLIX|SPOTIFY|PRIME|YOUTUBE|AUTOPAY|SIHUB|SUBSCRIPTION|HOTSTAR/.test(m)) {
         return { icon: '⚡', label: 'Utilities' };
       }
-      return { icon: '💳', label: 'Dining' };
+      return { icon: '💳', label: 'Shopping' };
     }
 
     function saveActiveThreshold() {

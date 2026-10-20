@@ -4,7 +4,8 @@
 const CONFIG = {
   DEFAULT_DAILY_LIMIT: 100,      // Fallback for cell G2
   DEFAULT_MONTHLY_LIMIT: 5000,   // Fallback for cell H2
-  GMAIL_SEARCH_QUERY: 'from:alerts@axis.bank.in "Amount Debited" -label:ExpensesProcessed',
+  // Broad query matching Axis Bank debit alerts, credit card transactions, and AutoPay alerts
+  GMAIL_SEARCH_QUERY: '(from:axis.bank.in OR from:axisbank.com) ("Amount Debited" OR "AutoPay" OR "Transaction Amount" OR "Credit Card" OR "spent on" OR "Transaction alert" OR "debited for") -label:ExpensesProcessed',
   PROCESSED_LABEL: 'ExpensesProcessed',
   WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbz4LphVWeHvjVxweBjqJ7zP4ISgzxeGiuT4zNH_vkeAYizlQG8MpRCChwfrpLEaH4yRoQ/exec'
 };
@@ -70,8 +71,9 @@ function getDashboardData() {
   let transactions = [];
 
   if (lastRow > 1) {
-    // Read only data columns A to D up to lastRow in a single batch RPC
-    const data = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+    // Read data up to 6 columns (Date, Time, Amount, Merchant, Card/Mode, Subject)
+    const colCount = Math.min(sheet.getLastColumn(), 6);
+    const data = sheet.getRange(2, 1, lastRow - 1, Math.max(colCount, 4)).getValues();
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (!row[0]) continue;
@@ -87,6 +89,18 @@ function getDashboardData() {
       const amount = Number(row[2]);
       const merchant = row[3] || 'Axis Debit';
 
+      // Determine card / payment channel from column E
+      let card = 'Axis Direct';
+      if (row[4]) {
+        const val = String(row[4]).trim();
+        if (val.length > 0 && val.length < 35 && !val.toLowerCase().includes('subject:') && !val.toLowerCase().includes('alert for')) {
+          card = val;
+        } else if (/XX\d{4}/i.test(val)) {
+          const m = val.match(/XX\d{4}/i);
+          card = 'Axis ' + m[0];
+        }
+      }
+
       if (dateStr === todayStr && !isNaN(amount)) {
         todayTotal += amount;
       }
@@ -95,7 +109,8 @@ function getDashboardData() {
         date: dateStr,
         time: timeStr,
         amount: amount,
-        merchant: merchant
+        merchant: merchant,
+        card: card
       });
     }
   }
@@ -150,15 +165,16 @@ function trackExpensesAndCheckLimit() {
   initializeSheetHeaders(sheet);
   
   const processedLabel = getOrCreateLabel(CONFIG.PROCESSED_LABEL);
-  const threads = GmailApp.search(CONFIG.GMAIL_SEARCH_QUERY, 0, 20);
+  const threads = GmailApp.search(CONFIG.GMAIL_SEARCH_QUERY, 0, 25);
   let newTransactionsCount = 0;
 
   for (const thread of threads) {
     const messages = thread.getMessages();
     for (const message of messages) {
       const body = message.getPlainBody();
+      const subject = message.getSubject() || '';
       const date = message.getDate();
-      const transaction = parseAxisEmail(body);
+      const transaction = parseAxisEmail(body, subject);
       
       if (transaction && transaction.amount > 0) {
         sheet.appendRow([
@@ -166,7 +182,8 @@ function trackExpensesAndCheckLimit() {
           Utilities.formatDate(date, Session.getScriptTimeZone(), 'HH:mm:ss'),
           transaction.amount,
           transaction.merchant,
-          message.getSubject()
+          transaction.card || 'Axis Direct',
+          subject
         ]);
         newTransactionsCount++;
       }
@@ -182,34 +199,76 @@ function trackExpensesAndCheckLimit() {
 }
 
 // ==========================================
-// AXIS BANK EMAIL PARSER
+// MULTI-CHANNEL BANK & CARD EMAIL PARSER
 // ==========================================
-function parseAxisEmail(body) {
-  let amountMatch = body.match(/Amount Debited:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
+function parseAxisEmail(body, subject) {
+  if (!body) return null;
 
-  if (!amountMatch) {
-    amountMatch = body.match(/(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})\s*(?:has been debited|is debited|debited)/i) ||
-                  body.match(/debited\s*(?:for|with|by)\s*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
-                  body.match(/transaction of\s*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
+  // 1. AutoPay Transaction (Subscriptions, Recurring debits e.g. Apple, Netflix, SIHub)
+  if (/AutoPay/i.test(body) || /AutoPay/i.test(subject)) {
+    const amtMatch = body.match(/Transaction Amount:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
+                     body.match(/(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
+    const merchMatch = body.match(/Merchant Name:?[\s\r\n\t]*([^\r\n]+)/i);
+    const cardMatch = body.match(/(?:Axis Bank Card No\.?|Card No\.?|Card ending)[\s\r\n\t]*([A-Za-z0-9]+)/i);
+
+    if (amtMatch) {
+      const amount = parseFloat(amtMatch[1].replace(/,/g, ''));
+      if (!isNaN(amount) && amount > 0) {
+        const merchant = merchMatch ? merchMatch[1].trim() : 'AutoPay Debit';
+        const cardNum = cardMatch ? cardMatch[1].trim() : '';
+        const card = cardNum ? (cardNum.startsWith('XX') ? `Axis Card ${cardNum}` : `Axis Card XX${cardNum}`) : 'Axis Card';
+        return { amount: amount, merchant: merchant, card: card, type: 'AutoPay' };
+      }
+    }
   }
 
-  if (!amountMatch) return null;
+  // 2. Credit Card Transaction Alert (Swipes, Online POS, E-commerce)
+  if (/Credit Card|Card no\.|ending with/i.test(body) || /Credit Card/i.test(subject)) {
+    let amtMatch = body.match(/(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})\s*(?:has been spent|was spent|spent|debited)/i) ||
+                   body.match(/(?:spent|debited)\s*(?:for|with|by)?\s*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
+                   body.match(/Transaction Amount:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
 
-  const cleanAmount = amountMatch[1].replace(/,/g, '');
-  const amount = parseFloat(cleanAmount);
-  if (isNaN(amount) || amount <= 0) return null;
+    let merchMatch = body.match(/at\s+([A-Za-z0-9\s.,&'-]+?)(?:\s+on\s+|\s*\.|\s*Available|\s*Avbl|\s*Total|\s*Ref|\s*$)/i) ||
+                     body.match(/Merchant Name:?[\s\r\n\t]*([^\r\n]+)/i);
 
-  let merchant = 'Axis Debit';
-  const infoMatch = body.match(/Transaction Info:?[\s\r\n\t]*([^\r\n]+)/i);
-  if (infoMatch) {
-    const rawInfo = infoMatch[1].trim();
-    const parts = rawInfo.split('/');
-    merchant = (parts.length > 1 && parts[parts.length - 1].trim() !== '') 
-      ? parts[parts.length - 1].trim() 
-      : rawInfo;
+    let cardMatch = body.match(/(?:Credit Card|Card)\s*(?:no\.?|ending with|ending)?\s*([X\d]{4,16})/i);
+
+    if (amtMatch) {
+      const amount = parseFloat(amtMatch[1].replace(/,/g, ''));
+      if (!isNaN(amount) && amount > 0) {
+        let merchant = merchMatch ? merchMatch[1].trim() : 'Credit Card';
+        merchant = merchant.replace(/\s+/g, ' ');
+        const cardNum = cardMatch ? cardMatch[1].trim() : '';
+        const card = cardNum ? (cardNum.startsWith('XX') ? `Axis CC ${cardNum}` : `Axis CC XX${cardNum}`) : 'Axis CC';
+        return { amount: amount, merchant: merchant, card: card, type: 'Credit Card' };
+      }
+    }
   }
 
-  return { amount: amount, merchant: merchant };
+  // 3. Bank Account / UPI / Debit Alert
+  let amtMatch = body.match(/Amount Debited:?[\s\r\n\t]*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
+                 body.match(/(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})\s*(?:has been debited|is debited|debited)/i) ||
+                 body.match(/debited\s*(?:for|with|by)\s*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i) ||
+                 body.match(/transaction of\s*(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i);
+
+  if (amtMatch) {
+    const amount = parseFloat(amtMatch[1].replace(/,/g, ''));
+    if (!isNaN(amount) && amount > 0) {
+      let merchant = 'Axis Debit';
+      const infoMatch = body.match(/Transaction Info:?[\s\r\n\t]*([^\r\n]+)/i);
+      if (infoMatch) {
+        let rawInfo = infoMatch[1].trim();
+        rawInfo = rawInfo.replace(/\.?\s*(?:Available\s*)?Balance:?.*$/i, '').trim();
+        const parts = rawInfo.split('/');
+        merchant = (parts.length > 1 && parts[parts.length - 1].trim() !== '') 
+          ? parts[parts.length - 1].trim() 
+          : rawInfo;
+      }
+      return { amount: amount, merchant: merchant, card: 'Axis A/C', type: 'Bank Debit' };
+    }
+  }
+
+  return null;
 }
 
 // ==========================================
@@ -233,10 +292,11 @@ function checkDailyBudgetLimit(sheet) {
     const amount = Number(data[i][2]);
     const merchant = data[i][3] || 'Axis Debit';
     const time = data[i][1] ? data[i][1].toString() : '';
+    const card = data[i][4] ? String(data[i][4]).trim() : 'Axis Direct';
 
     if (rowDate === todayStr && !isNaN(amount)) {
       todayTotal += amount;
-      todayTx.push({ amount: amount, merchant: merchant, time: time });
+      todayTx.push({ amount: amount, merchant: merchant, time: time, card: card });
     }
   }
 
@@ -260,7 +320,7 @@ function dispatchKageEmailAlert(spent, limit, transactions) {
       <tr>
         <td style="padding: 10px 0; border-bottom: 1px solid #1a1e27; color: #f1f5f9; font-size: 14px; font-weight: 500;">
           ${t.merchant}
-          <div style="font-size: 11px; color: #717d96; margin-top: 2px;">${t.time}</div>
+          <div style="font-size: 11px; color: #717d96; margin-top: 2px;">${t.card ? t.card + ' • ' : ''}${t.time}</div>
         </td>
         <td style="padding: 10px 0; border-bottom: 1px solid #1a1e27; text-align: right; color: #ff6b64; font-size: 14px; font-weight: 600;">
           -₹${Number(t.amount).toFixed(2)}
@@ -322,8 +382,8 @@ function dispatchKageEmailAlert(spent, limit, transactions) {
 
 function initializeSheetHeaders(sheet) {
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['Date', 'Time', 'Amount (INR)', 'Merchant/Info', 'Email Subject']);
-    sheet.getRange("A1:E1").setFontWeight("bold");
+    sheet.appendRow(['Date', 'Time', 'Amount (INR)', 'Merchant/Info', 'Card/Mode', 'Email Subject']);
+    sheet.getRange("A1:F1").setFontWeight("bold");
     sheet.setFrozenRows(1);
   }
   
