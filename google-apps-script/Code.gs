@@ -413,3 +413,78 @@ function getOrCreateLabel(labelName) {
   }
   return label;
 }
+
+// ==========================================
+// GOOGLE SHEETS CUSTOM MENU
+// ==========================================
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('💳 Expense Tracker')
+    .addItem('⚡ Sync Latest Emails', 'trackExpensesAndCheckLimit')
+    .addSeparator()
+    .addItem('📦 Archive Previous Years', 'autoArchivePreviousYears')
+    .addToUi();
+}
+
+// ==========================================
+// AUTO-ARCHIVE ENGINE (Maintains Speed Forever)
+// ==========================================
+function autoArchivePreviousYears() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const activeSheet = ss.getActiveSheet();
+  const lastRow = activeSheet.getLastRow();
+  if (lastRow <= 1) return;
+
+  const currentYear = new Date().getFullYear();
+  const colCount = Math.min(activeSheet.getLastColumn(), 6);
+  const data = activeSheet.getRange(2, 1, lastRow - 1, Math.max(colCount, 4)).getValues();
+
+  const toArchive = {}; // { '2025': [ [row], [row] ] }
+  const rowsToDelete = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const rawDate = data[i][0];
+    if (!rawDate) continue;
+
+    let rowYear = null;
+    if (rawDate instanceof Date) {
+      rowYear = rawDate.getFullYear();
+    } else {
+      const str = String(rawDate).trim();
+      const m = str.match(/^(\d{4})/);
+      if (m) rowYear = parseInt(m[1], 10);
+    }
+
+    // Move any past year to its archive tab
+    if (rowYear && rowYear < currentYear) {
+      if (!toArchive[rowYear]) toArchive[rowYear] = [];
+      toArchive[rowYear].push(data[i]);
+      rowsToDelete.push(i + 2); // 1-indexed (row 1 is header)
+    }
+  }
+
+  // Populate year archive sheets
+  for (const year in toArchive) {
+    const sheetName = `Archive_${year}`;
+    let archiveSheet = ss.getSheetByName(sheetName);
+    if (!archiveSheet) {
+      archiveSheet = ss.insertSheet(sheetName);
+      archiveSheet.appendRow(['Date', 'Time', 'Amount (INR)', 'Merchant/Info', 'Card/Mode', 'Email Subject']);
+      archiveSheet.getRange("A1:F1").setFontWeight("bold");
+      archiveSheet.setFrozenRows(1);
+    }
+    const rows = toArchive[year];
+    if (rows.length > 0) {
+      archiveSheet.getRange(archiveSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    }
+  }
+
+  // Delete archived rows from active sheet in reverse order to preserve row indices
+  for (let r = rowsToDelete.length - 1; r >= 0; r--) {
+    activeSheet.deleteRow(rowsToDelete[r]);
+  }
+
+  if (rowsToDelete.length > 0) {
+    try { CacheService.getScriptCache().remove("dashboard_data_v1"); } catch(e) {}
+  }
+}

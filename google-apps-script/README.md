@@ -12,11 +12,18 @@ This directory contains the Google Apps Script backend code that powers the Expe
   - `dailyLimit`: Daily spending threshold (₹)
   - `monthlyLimit`: Monthly budget threshold (₹)
   - `todayStr`: Current ISO date string
-  - `transactions`: Array of recorded expenses with `date`, `time`, `amount`, and `merchant`
+  - `transactions`: Array of recorded expenses with `date`, `time`, `amount`, `merchant`, and `card`
 - `GET ?action=updateDailyLimit&val=<AMOUNT>` - Updates daily limit cell in the Google Sheet.
 - `GET ?action=updateMonthlyLimit&val=<AMOUNT>` - Updates monthly limit cell in the Google Sheet.
 
 ## Gmail Automation
-The script filters incoming emails from Axis Bank:
-`from:alerts@axis.bank.in "Amount Debited" -label:ExpensesProcessed`
-When run via a time-driven trigger (e.g., every 5-10 minutes), it automatically extracts the transaction amount and merchant name, appends it to the Google Sheet, and labels the email as processed.
+The script filters incoming emails across `axis.bank.in` and `axisbank.com`:
+- **AutoPay recurring transactions**: Apple, Netflix, Spotify, SIHub subscriptions.
+- **Credit Card transactions**: Online purchases (Amazon, YouTube, Flipkart), swiped POS payments.
+- **Bank debits**: Standard UPI & NetBanking debits.
+
+## Auto-Archiving
+Includes `autoArchivePreviousYears()` to keep the main sheet fast forever:
+- Automatically groups transactions from previous calendar years into tabs named `Archive_<YEAR>`.
+- Preserves headers and cleans up the active tracking sheet.
+- Can be run on demand from the custom menu: **💳 Expense Tracker** → **📦 Archive Previous Years**.
