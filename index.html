@@ -23,7 +23,8 @@
   <!-- GSAP Core & Flip Plugin CDN (Deferred non-blocking loading) -->
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 
   <style>
@@ -2922,6 +2923,18 @@ ${catBreakdownHtml}
       const total = preparedList.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
       const avg = preparedList.length > 0 ? (total / preparedList.length) : 0;
 
+      // Dynamic Active Categories
+      const catMap = {};
+      preparedList.forEach(t => {
+        const c = t.category || 'Other';
+        if (!catMap[c]) catMap[c] = { sum: 0, count: 0 };
+        catMap[c].sum += Number(t.amount) || 0;
+        catMap[c].count++;
+      });
+      const activeCats = Object.keys(catMap)
+        .filter(c => catMap[c].count > 0 && catMap[c].sum > 0)
+        .sort((a, b) => catMap[b].sum - catMap[a].sum);
+
       const rows = preparedList.map((t, idx) => `
         <tr style="border-bottom:1px solid #f1f5f9; background:${idx % 2 === 0 ? '#ffffff' : '#fafbfc'};">
           <td style="color:#64748b; font-size:11px; text-align:center; padding:9px 8px;">${idx + 1}</td>
@@ -2934,11 +2947,25 @@ ${catBreakdownHtml}
         </tr>
       `).join('');
 
+      let catPillsHtml = '';
+      if (activeCats.length > 0) {
+        catPillsHtml = `
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; font-size:11px;">
+            <span style="font-weight:700; color:#475569;">Active Categories:</span>
+            ${activeCats.map(c => {
+              const cAmt = catMap[c].sum;
+              const pct = total > 0 ? ((cAmt / total) * 100).toFixed(1) : '0.0';
+              return `<span style="background:#f1f5f9; border:1px solid #cbd5e1; padding:3px 8px; border-radius:6px; font-weight:600; color:#1e293b;">${c}: ₹${cAmt.toFixed(2)} (${pct}%)</span>`;
+            }).join('')}
+          </div>
+        `;
+      }
+
       const sheetHtml = `
-        <div class="statement-header" style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:18px; border-bottom:2px solid #0f172a; margin-bottom:20px;">
+        <div class="statement-header" style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:16px; border-bottom:2px solid #0f172a; margin-bottom:18px;">
           <div>
             <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; color:#0f172a;">TREASURY STATEMENT</div>
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px;">Verified Expense &amp; Audit Ledger</div>
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px;">Official Expense &amp; Audit Ledger</div>
           </div>
           <div class="statement-header-meta" style="text-align:right; font-size:12px; color:#475569; line-height:1.5;">
             <div>Scope: <strong style="color:#0f172a;">${escapeHtml(scopeLabel)}</strong></div>
@@ -2954,7 +2981,7 @@ ${catBreakdownHtml}
           </div>
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px;">
             <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Total Transactions</div>
-            <div style="font-size:20px; font-weight:800; color:#0f172a; margin-top:4px;">${preparedList.length}</div>
+            <div style="font-size:20px; font-weight:800; color:#0f172a; margin-top:4px;">${preparedList.length} Records</div>
           </div>
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px;">
             <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Average Ticket Size</div>
@@ -2962,19 +2989,21 @@ ${catBreakdownHtml}
           </div>
         </div>
 
+        ${catPillsHtml}
+
         <div class="statement-mobile-scroll-tip">← Swipe table sideways to view full ledger →</div>
 
         <div class="statement-table-wrapper">
           <table>
             <thead>
-              <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1;">
-                <th style="width:36px; text-align:center; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">#</th>
-                <th style="width:95px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Date</th>
-                <th style="width:80px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Time</th>
-                <th style="text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Merchant / Payee</th>
-                <th style="width:90px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Category</th>
-                <th style="width:140px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Account / Method</th>
-                <th style="width:110px; text-align:right; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Amount</th>
+              <tr style="background:#0f172a; color:#ffffff;">
+                <th style="width:36px; text-align:center; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">#</th>
+                <th style="width:95px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">Date</th>
+                <th style="width:80px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">Time</th>
+                <th style="text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">Merchant / Payee</th>
+                <th style="width:90px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">Category</th>
+                <th style="width:140px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">Account / Method</th>
+                <th style="width:110px; text-align:right; padding:10px 8px; font-size:11px; font-weight:700; color:#ffffff;">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -2986,17 +3015,21 @@ ${catBreakdownHtml}
             </tbody>
           </table>
         </div>
-
-        <div style="margin-top:24px; padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; flex-wrap:wrap; gap:8px;">
-          <div>Generated from Treasury Personal Finance Terminal</div>
-          <div>Official Personal Financial Statement</div>
-        </div>
       `;
 
       currentStatementDownloadData = {
         scopeLabel: scopeLabel,
+        timestamp: timestamp,
+        auditId: auditId,
         total: total,
-        count: preparedList.length
+        avg: avg,
+        list: preparedList,
+        activeCats: activeCats.map(c => ({
+          name: c,
+          count: catMap[c].count,
+          sum: catMap[c].sum,
+          pct: total > 0 ? ((catMap[c].sum / total) * 100).toFixed(1) + '%' : '0.0%'
+        }))
       };
 
       const container = document.getElementById('statement-sheet-content');
@@ -3016,24 +3049,41 @@ ${catBreakdownHtml}
       if (stmtModal) stmtModal.style.display = 'none';
     }
 
-    function loadHtml2PdfLibrary() {
-      if (window.html2pdf) return Promise.resolve(window.html2pdf);
+    function loadJsPdfLibraries() {
+      if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable) {
+        return Promise.resolve(window.jspdf.jsPDF);
+      }
       return new Promise((resolve, reject) => {
-        const existing = document.querySelector('script[src*="html2pdf"]');
-        if (existing && window.html2pdf) return resolve(window.html2pdf);
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => resolve(window.html2pdf);
-        script.onerror = () => reject(new Error('PDF generator library failed to load'));
-        document.head.appendChild(script);
+        const loadScript = (src) => new Promise((res, rej) => {
+          const existing = document.querySelector(`script[src="${src}"]`);
+          if (existing && existing.getAttribute('data-loaded') === 'true') return res();
+          const s = existing || document.createElement('script');
+          s.src = src;
+          s.onload = () => { s.setAttribute('data-loaded', 'true'); res(); };
+          s.onerror = rej;
+          if (!existing) document.head.appendChild(s);
+        });
+
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+          .then(() => loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'))
+          .then(() => {
+            if (window.jspdf && window.jspdf.jsPDF) resolve(window.jspdf.jsPDF);
+            else reject(new Error('jsPDF not initialized'));
+          })
+          .catch(reject);
       });
     }
 
-    // Direct PDF generator and downloader (.pdf format)
+    // Direct, Native Vector PDF Generator & Downloader (100% reliable, never white, no blob URLs)
     async function downloadStatementPdfFile() {
       const btn = document.getElementById('btn-download-pdf');
       const label = document.getElementById('btn-download-pdf-label');
       const originalText = label ? label.textContent : 'Download PDF';
+
+      if (!currentStatementDownloadData || !currentStatementDownloadData.list || currentStatementDownloadData.list.length === 0) {
+        showToast('No statement data to download');
+        return;
+      }
 
       if (btn) btn.disabled = true;
       if (label) label.textContent = 'Generating PDF...';
@@ -3046,72 +3096,224 @@ ${catBreakdownHtml}
       const filename = `Treasury_Statement_${scopeSuffix}_${dateStamp}.pdf`;
 
       try {
-        const html2pdfLib = await loadHtml2PdfLibrary();
-        if (!html2pdfLib) throw new Error('PDF generator library not available');
+        const JsPdfConstructor = await loadJsPdfLibraries();
+        const doc = new JsPdfConstructor({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
 
-        // Create an offscreen standard A4 container to guarantee perfect desktop printing typography regardless of mobile screen size
-        const a4Wrapper = document.createElement('div');
-        a4Wrapper.style.width = '794px'; // Standard A4 width at 96 DPI
-        a4Wrapper.style.padding = '36px 32px';
-        a4Wrapper.style.background = '#ffffff';
-        a4Wrapper.style.color = '#0f172a';
-        a4Wrapper.style.fontFamily = "Calibri, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-        a4Wrapper.style.position = 'fixed';
-        a4Wrapper.style.left = '-9999px';
-        a4Wrapper.style.top = '0';
-        a4Wrapper.style.zIndex = '-9999';
-        a4Wrapper.style.boxSizing = 'border-box';
+        const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+        const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+        const margin = 14;
+        const contentWidth = pageWidth - (margin * 2); // 182mm
 
-        const sheetEl = document.getElementById('statement-sheet-content');
-        if (!sheetEl) throw new Error('Statement content not found');
-        
-        a4Wrapper.innerHTML = sheetEl.innerHTML;
-        
-        // Optimize elements for A4 print
-        const tblWrapper = a4Wrapper.querySelector('.statement-table-wrapper');
-        if (tblWrapper) {
-          tblWrapper.style.overflow = 'visible';
-          tblWrapper.style.border = 'none';
+        // 1. Top Decorative Accent Bar (Navy #0f172a)
+        doc.setFillColor(15, 23, 42);
+        doc.rect(margin, 12, contentWidth, 2.5, 'F');
+
+        // 2. Title & Subtitle (Left)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(17);
+        doc.setTextColor(15, 23, 42);
+        doc.text('TREASURY STATEMENT', margin, 23);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('OFFICIAL EXPENSE & AUDIT LEDGER', margin, 27.5);
+
+        // 3. Metadata (Right aligned)
+        const metaRight = pageWidth - margin;
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`Scope: ${currentStatementDownloadData.scopeLabel}`, metaRight, 20.5, { align: 'right' });
+        doc.text(`Generated: ${currentStatementDownloadData.timestamp}`, metaRight, 24.5, { align: 'right' });
+        doc.text(`Audit ID: ${currentStatementDownloadData.auditId}`, metaRight, 28.5, { align: 'right' });
+
+        // Divider Line
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.4);
+        doc.line(margin, 32, metaRight, 32);
+
+        // 4. Executive Summary KPI Cards (Total Spend, Total Txs, Average Ticket)
+        const kpiY = 36;
+        const kpiGap = 5;
+        const kpiWidth = (contentWidth - (kpiGap * 2)) / 3;
+        const kpiHeight = 18;
+
+        // Card 1: Total Expenditure
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(margin, kpiY, kpiWidth, kpiHeight, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('TOTAL EXPENDITURE', margin + 4, kpiY + 5.5);
+        doc.setFontSize(12.5);
+        doc.setTextColor(225, 29, 72);
+        doc.text(`INR ${currentStatementDownloadData.total.toFixed(2)}`, margin + 4, kpiY + 13.5);
+
+        // Card 2: Transactions
+        const c2X = margin + kpiWidth + kpiGap;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(c2X, kpiY, kpiWidth, kpiHeight, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('TRANSACTIONS', c2X + 4, kpiY + 5.5);
+        doc.setFontSize(12.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${currentStatementDownloadData.list.length} Records`, c2X + 4, kpiY + 13.5);
+
+        // Card 3: Average Ticket
+        const c3X = c2X + kpiWidth + kpiGap;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(c3X, kpiY, kpiWidth, kpiHeight, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('AVERAGE TICKET', c3X + 4, kpiY + 5.5);
+        doc.setFontSize(12.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`INR ${currentStatementDownloadData.avg.toFixed(2)}`, c3X + 4, kpiY + 13.5);
+
+        // 5. Active Categories (if any)
+        let tableStartY = kpiY + kpiHeight + 5;
+        if (currentStatementDownloadData.activeCats && currentStatementDownloadData.activeCats.length > 0) {
+          const catY = kpiY + kpiHeight + 6;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(71, 85, 105);
+          doc.text('Active Categories:', margin, catY);
+
+          let bX = margin + 28;
+          currentStatementDownloadData.activeCats.forEach(c => {
+            const txt = `${c.name}: INR ${c.sum.toFixed(2)} (${c.pct})`;
+            const w = doc.getTextWidth(txt) + 5;
+            doc.setFillColor(241, 245, 249);
+            doc.setDrawColor(203, 213, 225);
+            doc.roundedRect(bX, catY - 3.5, w, 5.5, 1.2, 1.2, 'FD');
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.2);
+            doc.setTextColor(30, 41, 59);
+            doc.text(txt, bX + 2.5, catY);
+            bX += w + 2.5;
+          });
+          tableStartY = catY + 6;
         }
-        const tip = a4Wrapper.querySelector('.statement-mobile-scroll-tip');
-        if (tip) tip.remove();
 
-        const kpis = a4Wrapper.querySelector('.statement-kpis');
-        if (kpis) {
-          kpis.style.gridTemplateColumns = 'repeat(3, 1fr)';
-          kpis.style.gap = '14px';
+        // 6. Ledger Table
+        const headers = [['#', 'Date', 'Time', 'Merchant / Payee', 'Category', 'Payment Method', 'Amount (INR)']];
+        const body = currentStatementDownloadData.list.map((t, idx) => [
+          String(idx + 1),
+          t.dateFormatted,
+          t.time,
+          t.merchantClean,
+          t.category,
+          t.accountClean,
+          Number(t.amount).toFixed(2)
+        ]);
+
+        doc.autoTable({
+          startY: tableStartY,
+          margin: { left: margin, right: margin, bottom: 15 },
+          head: headers,
+          body: body,
+          theme: 'plain',
+          headStyles: {
+            fillColor: [15, 23, 42],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.5,
+            halign: 'left',
+            cellPadding: 3.2
+          },
+          bodyStyles: {
+            fontSize: 8.2,
+            textColor: [30, 41, 59],
+            cellPadding: 3
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10, textColor: [100, 116, 139] },
+            1: { halign: 'center', cellWidth: 24 },
+            2: { halign: 'center', cellWidth: 18, textColor: [100, 116, 139] },
+            3: { cellWidth: 'auto', fontStyle: 'bold', textColor: [15, 23, 42] },
+            4: { halign: 'center', cellWidth: 22 },
+            5: { cellWidth: 38, textColor: [71, 85, 105] },
+            6: { halign: 'right', cellWidth: 28, fontStyle: 'bold', textColor: [15, 23, 42] }
+          },
+          foot: [
+            ['', '', '', 'GRAND TOTAL:', '', '', `INR ${currentStatementDownloadData.total.toFixed(2)}`]
+          ],
+          footStyles: {
+            fillColor: [15, 23, 42],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.8,
+            cellPadding: 3.4,
+            halign: 'right'
+          },
+          didDrawPage: (data) => {
+            const footerY = pageHeight - 8;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.setTextColor(148, 163, 184);
+            doc.text('Treasury Statement • Verified Audit Ledger', margin, footerY);
+            doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - margin, footerY, { align: 'right' });
+          }
+        });
+
+        // 7. Deliver PDF cleanly
+        const blob = doc.output('blob');
+        const file = new File([blob], filename, { type: 'application/pdf' });
+
+        // On mobile (iOS / Android), use native Web Share API with files if available
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: filename
+            });
+            showToast('Statement ready in Files / Share Sheet!');
+            if (label) label.textContent = '✓ Saved PDF!';
+            setTimeout(() => {
+              if (label) label.textContent = originalText;
+              if (btn) btn.disabled = false;
+            }, 2000);
+            return;
+          } catch (shareErr) {
+            if (shareErr.name === 'AbortError') {
+              // User dismissed sheet
+              if (label) label.textContent = originalText;
+              if (btn) btn.disabled = false;
+              return;
+            }
+          }
         }
 
-        document.body.appendChild(a4Wrapper);
-
-        const opt = {
-          margin: [10, 10, 10, 10], // mm
-          filename: filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        await html2pdfLib().set(opt).from(a4Wrapper).save();
-        document.body.removeChild(a4Wrapper);
-
-        if (label) label.textContent = '✓ Saved PDF!';
+        // Direct browser file download (never opens blob URL or white screen)
+        doc.save(filename);
         showToast('PDF downloaded successfully!');
+        if (label) label.textContent = '✓ Saved PDF!';
         setTimeout(() => {
           if (label) label.textContent = originalText;
           if (btn) btn.disabled = false;
-        }, 2500);
+        }, 2000);
 
       } catch (err) {
-        console.warn('Direct PDF download error, invoking system print fallback:', err);
+        console.error('PDF generation error:', err);
+        showToast('PDF error: ' + (err.message || 'Failed to generate PDF'));
         if (label) label.textContent = originalText;
         if (btn) btn.disabled = false;
-        showToast('Opening print dialog to save as PDF...');
-        window.print();
       }
     }
 
-    // Escape key closes modals safely
+        // Escape key closes modals safely
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeStatementModal();
