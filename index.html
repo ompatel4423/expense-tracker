@@ -1177,6 +1177,50 @@
       </div>
     </div>
   </div>
+  <!-- In-App Statement Viewer Modal (with Exit, Print & Save as PDF controls) -->
+  <div id="statement-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); z-index:10000; flex-direction:column; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+    
+    <!-- Sticky Top Navigation Bar -->
+    <div class="statement-top-bar" style="position:sticky; top:0; z-index:100; background:#0b0d14; border-bottom:1px solid rgba(255,255,255,0.1); padding:12px 18px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+      <button type="button" onclick="closeStatementModal()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); color:#fff; padding:8px 14px; border-radius:10px; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+        <span style="font-size:14px;">✕</span>
+        <span>Exit to App</span>
+      </button>
+
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" onclick="triggerStatementPrint()" style="background:var(--cyan); color:#000; border:none; padding:8px 16px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(56, 189, 248, 0.35);">
+          <span>📥</span>
+          <span>Save as PDF / Print</span>
+        </button>
+        <button type="button" onclick="downloadStatementHtmlFile()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#cbd5e1; padding:8px 12px; border-radius:10px; font-weight:600; font-size:12px; cursor:pointer;" title="Download statement as HTML document">
+          <span>💾 Download File</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick instructions helper pill -->
+    <div class="statement-hint-bar" style="background:#161a26; border-bottom:1px solid rgba(255,255,255,0.08); padding:10px 18px; font-size:12px; color:#94a3b8; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+      <div>
+        <strong style="color:#fff;">💡 How to Save:</strong> Tap <strong style="color:var(--cyan);">"Save as PDF / Print"</strong> &rarr; in destination select <strong style="color:#fff;">"Save as PDF"</strong> (On iPhone: tap Share icon &rarr; "Save to Files").
+      </div>
+      <button type="button" onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:#64748b; cursor:pointer; font-size:12px;">✕ Dismiss</button>
+    </div>
+
+    <!-- Statement Document Sheet Preview -->
+    <div style="flex:1; padding:24px 16px 40px; display:flex; justify-content:center; align-items:flex-start;">
+      <div id="statement-sheet-content" class="statement-sheet" style="background:#ffffff; color:#0f172a; max-width:820px; width:100%; border-radius:16px; box-shadow:0 25px 60px rgba(0,0,0,0.85); padding:36px 32px; box-sizing:border-box;">
+        <!-- Injected Statement Content -->
+      </div>
+    </div>
+
+    <!-- Sticky Bottom Bar for quick exit -->
+    <div class="statement-top-bar" style="background:#0b0d14; border-top:1px solid rgba(255,255,255,0.1); padding:12px 18px; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:12px; color:#64748b;">Treasury Personal Finance Terminal</span>
+      <button type="button" onclick="closeStatementModal()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#fff; padding:6px 14px; border-radius:8px; font-weight:600; font-size:12px; cursor:pointer;">
+        ✕ Close View
+      </button>
+    </div>
+  </div>
 
 
   <script>
@@ -2786,7 +2830,9 @@
       showToast(`Exported ${list.length} transactions as Clean CSV!`);
     }
 
-    // 3. Printable / PDF Statement View
+    // 3. Printable / PDF Statement View (In-App Viewer with Exit & Save controls)
+    let currentStatementDownloadData = null;
+
     function openPrintableStatementView() {
       const list = getFilteredList(false);
       if (!list || list.length === 0) {
@@ -2797,6 +2843,7 @@
       const scopeLabel = getActiveScopeExportLabel();
       const now = new Date();
       const timestamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const auditId = 'AUD-' + Date.now().toString(36).toUpperCase();
 
       const preparedList = list.map(t => ({
         ...t,
@@ -2811,130 +2858,137 @@
       const avg = preparedList.length > 0 ? (total / preparedList.length) : 0;
 
       const rows = preparedList.map((t, idx) => `
-        <tr>
-          <td style="color:#64748b; font-size:11px; text-align:center;">${idx + 1}</td>
-          <td style="font-weight:500;">${t.dateFormatted}</td>
-          <td style="color:#64748b;">${t.time}</td>
-          <td style="font-weight:600; color:#0f172a;">${escapeHtml(t.merchantClean)}</td>
-          <td><span class="badge ${t.category.toLowerCase()}">${t.category}</span></td>
-          <td style="color:#64748b;">${escapeHtml(t.accountClean)}</td>
-          <td style="text-align:right; font-weight:700; color:#0f172a; font-family:monospace;">₹${Number(t.amount).toFixed(2)}</td>
+        <tr style="border-bottom:1px solid #f1f5f9; background:${idx % 2 === 0 ? '#ffffff' : '#fafbfc'};">
+          <td style="color:#64748b; font-size:11px; text-align:center; padding:9px 8px;">${idx + 1}</td>
+          <td style="font-weight:600; padding:9px 8px; font-size:12px;">${t.dateFormatted}</td>
+          <td style="color:#64748b; padding:9px 8px; font-size:11px;">${t.time}</td>
+          <td style="font-weight:600; color:#0f172a; padding:9px 8px; font-size:12px;">${escapeHtml(t.merchantClean)}</td>
+          <td style="padding:9px 8px;"><span class="badge ${t.category.toLowerCase()}" style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:600; background:#e2e8f0; color:#334155;">${t.category}</span></td>
+          <td style="color:#64748b; padding:9px 8px; font-size:11px;">${escapeHtml(t.accountClean)}</td>
+          <td style="text-align:right; font-weight:700; color:#0f172a; font-family:monospace; padding:9px 8px; font-size:12px;">₹${Number(t.amount).toFixed(2)}</td>
         </tr>
       `).join('');
 
-      const printHtml = `<!DOCTYPE html>
+      const sheetHtml = `
+        <div class="statement-header" style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:20px; border-bottom:2px solid #0f172a; margin-bottom:22px;">
+          <div>
+            <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; color:#0f172a;">TREASURY STATEMENT</div>
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px;">Verified Expense &amp; Audit Ledger</div>
+          </div>
+          <div style="text-align:right; font-size:12px; color:#475569; line-height:1.5;">
+            <div>Scope: <strong style="color:#0f172a;">${escapeHtml(scopeLabel)}</strong></div>
+            <div>Generated: <strong style="color:#0f172a;">${timestamp}</strong></div>
+            <div>Audit ID: <strong style="color:#0f172a; font-family:monospace;">${auditId}</strong></div>
+          </div>
+        </div>
+
+        <div class="statement-kpis" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:24px;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px;">
+            <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Total Expenditure</div>
+            <div style="font-size:20px; font-weight:800; color:#e11d48; margin-top:4px;">₹${total.toFixed(2)}</div>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px;">
+            <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Total Transactions</div>
+            <div style="font-size:20px; font-weight:800; color:#0f172a; margin-top:4px;">${preparedList.length}</div>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px;">
+            <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600;">Average Ticket Size</div>
+            <div style="font-size:20px; font-weight:800; color:#0f172a; margin-top:4px;">₹${avg.toFixed(2)}</div>
+          </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+          <thead>
+            <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1;">
+              <th style="width:36px; text-align:center; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">#</th>
+              <th style="width:100px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Date</th>
+              <th style="width:85px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Time</th>
+              <th style="text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Merchant / Payee</th>
+              <th style="width:95px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Category</th>
+              <th style="width:150px; text-align:left; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Account / Method</th>
+              <th style="width:110px; text-align:right; padding:10px 8px; font-size:11px; font-weight:700; color:#334155;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr style="background:#0f172a; color:#fff; font-weight:800;">
+              <td colspan="6" style="text-align:right; padding:12px 10px; font-size:12px; color:#fff;">GRAND TOTAL:</td>
+              <td style="text-align:right; padding:12px 10px; font-size:13px; font-family:monospace; color:#38bdf8;">₹${total.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:28px; padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; font-size:11px; color:#94a3b8;">
+          <div>Generated from Treasury Personal Finance Terminal</div>
+          <div>Official Personal Financial Statement</div>
+        </div>
+      `;
+
+      currentStatementDownloadData = {
+        html: sheetHtml,
+        scopeLabel: scopeLabel,
+        total: total,
+        count: preparedList.length
+      };
+
+      const container = document.getElementById('statement-sheet-content');
+      if (container) container.innerHTML = sheetHtml;
+
+      closeExportModal();
+
+      const stmtModal = document.getElementById('statement-modal');
+      if (stmtModal) {
+        stmtModal.style.display = 'flex';
+        stmtModal.scrollTop = 0;
+      }
+    }
+
+    function closeStatementModal() {
+      const stmtModal = document.getElementById('statement-modal');
+      if (stmtModal) stmtModal.style.display = 'none';
+    }
+
+    function triggerStatementPrint() {
+      window.print();
+    }
+
+    function downloadStatementHtmlFile() {
+      if (!currentStatementDownloadData) {
+        showToast('No statement data to download');
+        return;
+      }
+
+      const fullDoc = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Treasury Statement - ${escapeHtml(scopeLabel)}</title>
+  <title>Treasury Statement - ${escapeHtml(currentStatementDownloadData.scopeLabel)}</title>
   <style>
-    @page { size: A4; margin: 18mm 14mm; }
+    @page { size: A4; margin: 16mm 12mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; padding: 24px; font-size: 13px; line-height: 1.5; background: #fff; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid #0f172a; margin-bottom: 20px; }
-    .brand-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; }
-    .brand-sub { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
-    .meta-box { text-align: right; font-size: 12px; color: #475569; }
-    .meta-box strong { color: #0f172a; }
-
-    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
-    .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
-    .summary-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; }
-    .summary-value { font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 4px; }
-    .summary-value.total { color: #e11d48; }
-
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th { background: #f1f5f9; color: #334155; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 9px 10px; border-bottom: 2px solid #cbd5e1; text-align: left; }
-    td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
-    tr:nth-child(even) td { background: #fafafa; }
-    
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; background: #e2e8f0; color: #334155; }
-    .badge.dining { background: #fee2e2; color: #991b1b; }
-    .badge.shopping { background: #fef3c7; color: #92400e; }
-    .badge.transport { background: #e0e7ff; color: #3730a3; }
-    .badge.utilities { background: #e0f2fe; color: #0369a1; }
-
-    .grand-total-row td { background: #0f172a !important; color: #fff !important; font-weight: 800; font-size: 13px; padding: 12px 10px; }
-    .footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; }
-    
-    @media print {
-      body { padding: 0; }
-      .no-print { display: none !important; }
-    }
+    @media print { body { padding: 0; } }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div>
-      <div class="brand-title">TREASURY STATEMENT</div>
-      <div class="brand-sub">Verified Expense &amp; Audit Ledger</div>
-    </div>
-    <div class="meta-box">
-      <div>Scope: <strong>${escapeHtml(scopeLabel)}</strong></div>
-      <div>Generated: <strong>${timestamp}</strong></div>
-      <div>Audit ID: <strong>AUD-${Date.now().toString(36).toUpperCase()}</strong></div>
-    </div>
+  <div style="max-width:820px; margin:0 auto;">
+    ${currentStatementDownloadData.html}
   </div>
-
-  <div class="summary-grid">
-    <div class="summary-card">
-      <div class="summary-label">Total Expenditure</div>
-      <div class="summary-value total">₹${total.toFixed(2)}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-label">Total Transactions</div>
-      <div class="summary-value">${preparedList.length}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-label">Average Ticket Size</div>
-      <div class="summary-value">₹${avg.toFixed(2)}</div>
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width:30px; text-align:center;">#</th>
-        <th style="width:90px;">Date</th>
-        <th style="width:75px;">Time</th>
-        <th>Merchant / Payee</th>
-        <th style="width:90px;">Category</th>
-        <th style="width:140px;">Payment Method</th>
-        <th style="width:100px; text-align:right;">Amount (INR)</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-      <tr class="grand-total-row">
-        <td colspan="6" style="text-align:right;">GRAND TOTAL:</td>
-        <td style="text-align:right; font-family:monospace; color:#38bdf8 !important;">₹${total.toFixed(2)}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="footer">
-    <div>Generated from Treasury Personal Finance Terminal</div>
-    <div>Official Personal Financial Record</div>
-  </div>
-  <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); }, 400);
-    };
-  ` + '<' + `/script>
 </body>
 </html>`;
 
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.open();
-        printWindow.document.write(printHtml);
-        printWindow.document.close();
-      } else {
-        showToast('Pop-up blocked. Please allow pop-ups to print statement');
-      }
-      closeExportModal();
+      const blob = new Blob([fullDoc], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStamp = (rawData && rawData.todayStr) ? rawData.todayStr : new Date().toISOString().slice(0, 10);
+      a.download = `Treasury_Statement_${dateStamp}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast('Downloaded offline statement file!');
     }
-
     function exportCurrentLedgerCSV() {
       openExportModal();
     }
