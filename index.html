@@ -683,55 +683,133 @@
     }
     .btn-export-csv:active { transform: scale(0.97); }
 
+    /* 7-Day Spending Velocity Dual-Mode Card (Apple / Linear Grade) */
     .trend-card {
-      background: var(--surface-1);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 18px 20px 14px;
+      background: linear-gradient(180deg, rgba(16, 20, 30, 0.78) 0%, rgba(10, 13, 20, 0.88) 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 16px 18px 12px;
       margin-bottom: 24px;
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
-      width: 100%;
-      max-width: 100%;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 40px -15px rgba(0, 0, 0, 0.85);
+      position: relative;
       overflow: hidden;
+      width: 100%;
       box-sizing: border-box;
+      transition: border-color 0.3s;
     }
     .trend-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
-      gap: 8px;
+      gap: 10px;
     }
-    .trend-title {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: #fff;
+    .trend-title-wrap {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      min-width: 0;
+    }
+    .trend-status-beacon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      display: inline-block;
+      flex-shrink: 0;
+      animation: beaconPulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes beaconPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+    .trend-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .trend-pill {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
+    .trend-mode-toggle {
+      display: inline-flex;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      padding: 2px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .trend-toggle-btn {
+      background: transparent;
+      border: none;
+      color: #8b92a5;
+      font-size: 11px;
+      font-weight: 600;
       padding: 3px 9px;
       border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .trend-toggle-btn.active {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+    .trend-metrics-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 8px 14px;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+    .trend-metric-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .trend-metric-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .trend-metric-value {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #ffffff;
       font-family: var(--font-mono);
-      white-space: nowrap;
-      flex-shrink: 0;
+    }
+    .trend-metric-divider {
+      width: 1px;
+      height: 22px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .trend-metric-pill {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
     }
     .trend-chart-container {
       width: 100%;
       max-width: 100%;
-      height: 115px;
+      height: 145px;
       position: relative;
       overflow: hidden;
     }
@@ -741,11 +819,41 @@
       display: block;
       overflow: hidden;
     }
-    .trend-bar {
-      cursor: pointer;
-      transition: opacity 0.2s;
+    .trend-tooltip {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+      z-index: 10;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
     }
-    .trend-bar:hover {
+    .trend-tooltip.show {
+      opacity: 1;
+    }
+    .trend-footer-hint {
+      text-align: center;
+      font-size: 10.5px;
+      color: #64748b;
+      margin-top: 6px;
+    }
+    .trend-interactive-elem {
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+    }
+    .trend-interactive-elem:hover {
       opacity: 0.85;
     }
     .sub-item-card {
@@ -1074,21 +1182,53 @@
       </div>
     </section>
  
-    <!-- 7-Day Spending Velocity & Trend Card -->
+    <!-- 7-Day Spending Velocity & Trend Card (Dual-Mode: Capsule Bars + Spline Wave) -->
     <section class="trend-card" id="trend-section">
       <div class="trend-header">
-        <div class="trend-title">
-          <span>📊</span>
-          <span>7-Day Spending Velocity</span>
+        <div class="trend-title-wrap">
+          <span class="trend-status-beacon" id="trend-status-beacon" title="Velocity status"></span>
+          <span class="trend-title">7-Day Spending Velocity</span>
         </div>
-        <div id="trend-summary-pill" class="trend-pill">
-          <span>7-Day Avg: ₹0/day</span>
+        <div class="trend-mode-toggle" id="trend-mode-toggle">
+          <button type="button" class="trend-toggle-btn active" id="btn-chart-bars" onclick="setTrendChartMode('bars')" title="Pill Capsule Bars">
+            <span>📊</span>
+            <span>Bars</span>
+          </button>
+          <button type="button" class="trend-toggle-btn" id="btn-chart-wave" onclick="setTrendChartMode('wave')" title="Smooth Spline Wave">
+            <span>📈</span>
+            <span>Wave</span>
+          </button>
         </div>
       </div>
-      <div class="trend-chart-container">
-        <svg id="trend-svg" class="trend-svg" viewBox="0 0 520 125" preserveAspectRatio="none">
-          <!-- Dynamic bars rendered via render7DayTrendChart() -->
+
+      <!-- Executive 3-Metric Velocity Strip -->
+      <div class="trend-metrics-strip" id="trend-metrics-strip">
+        <div class="trend-metric-item">
+          <span class="trend-metric-label">7-Day Spend</span>
+          <span class="trend-metric-value" id="trend-metric-total">₹0.00</span>
+        </div>
+        <div class="trend-metric-divider"></div>
+        <div class="trend-metric-item">
+          <span class="trend-metric-label">Daily Avg</span>
+          <span class="trend-metric-value" id="trend-metric-avg">₹0/d</span>
+        </div>
+        <div class="trend-metric-divider"></div>
+        <div class="trend-metric-item">
+          <span class="trend-metric-label">Pace vs Cap</span>
+          <span class="trend-metric-pill" id="trend-metric-pace">--</span>
+        </div>
+      </div>
+
+      <div class="trend-chart-container" id="trend-chart-container">
+        <div class="trend-tooltip" id="trend-tooltip">
+          <span id="trend-tt-text">--</span>
+        </div>
+        <svg id="trend-svg" class="trend-svg" viewBox="0 0 540 145" preserveAspectRatio="none">
+          <!-- Rendered dynamically -->
         </svg>
+      </div>
+      <div class="trend-footer-hint">
+        <span>💡 Tap any day to filter your ledger</span>
       </div>
     </section>
 
@@ -2534,10 +2674,60 @@
     // =========================================================================
     // FEATURE 4: 7-DAY SPENDING VELOCITY & TREND CHART
     // =========================================================================
+    let currentTrendMode = localStorage.getItem('trend_chart_mode') || 'bars';
+
+    function setTrendChartMode(mode) {
+      currentTrendMode = mode;
+      try { localStorage.setItem('trend_chart_mode', mode); } catch (e) {}
+      const btnBars = document.getElementById('btn-chart-bars');
+      const btnWave = document.getElementById('btn-chart-wave');
+      if (btnBars) btnBars.classList.toggle('active', mode === 'bars');
+      if (btnWave) btnWave.classList.toggle('active', mode === 'wave');
+      render7DayTrendChart();
+    }
+
+    function showTrendTooltip(text) {
+      const tt = document.getElementById('trend-tooltip');
+      const ttText = document.getElementById('trend-tt-text');
+      if (tt && ttText) {
+        ttText.textContent = text;
+        tt.classList.add('show');
+      }
+    }
+
+    function hideTrendTooltip() {
+      const tt = document.getElementById('trend-tooltip');
+      if (tt) tt.classList.remove('show');
+    }
+
+    function getSplinePath(pts, k = 0.2) {
+      if (pts.length === 0) return '';
+      let d = `M ${pts[0].x} ${pts[0].y}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(i - 1, 0)];
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        const p3 = pts[Math.min(i + 2, pts.length - 1)];
+
+        const cp1x = (p1.x + (p2.x - p0.x) * k).toFixed(2);
+        const cp1y = (p1.y + (p2.y - p0.y) * k).toFixed(2);
+        const cp2x = (p2.x - (p3.x - p1.x) * k).toFixed(2);
+        const cp2y = (p2.y - (p3.y - p1.y) * k).toFixed(2);
+
+        d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+      }
+      return d;
+    }
+
     function render7DayTrendChart() {
       const svg = document.getElementById('trend-svg');
-      const pill = document.getElementById('trend-summary-pill');
       if (!svg || !rawData || !Array.isArray(rawData.transactions)) return;
+
+      // Sync toggle buttons state
+      const btnBars = document.getElementById('btn-chart-bars');
+      const btnWave = document.getElementById('btn-chart-wave');
+      if (btnBars) btnBars.classList.toggle('active', currentTrendMode === 'bars');
+      if (btnWave) btnWave.classList.toggle('active', currentTrendMode === 'wave');
 
       const todayParts = rawData.todayStr ? rawData.todayStr.split('-').map(Number) : null;
       const baseToday = todayParts ? new Date(todayParts[0], todayParts[1] - 1, todayParts[2]) : new Date();
@@ -2575,62 +2765,174 @@
       const maxSpend = Math.max(...days.map(d => d.spend));
       const maxVal = Math.max(maxSpend, dailyLimit, 100);
 
-      if (pill) {
-        pill.innerHTML = `<span>7-Day Avg: <strong>₹${avg7Day.toFixed(0)}</strong>/day</span>`;
+      // Update 3-Metric Velocity Strip
+      const mTotal = document.getElementById('trend-metric-total');
+      const mAvg = document.getElementById('trend-metric-avg');
+      const mPace = document.getElementById('trend-metric-pace');
+      const beacon = document.getElementById('trend-status-beacon');
+
+      if (mTotal) mTotal.textContent = `₹${total7Day.toFixed(2)}`;
+      if (mAvg) mAvg.textContent = `₹${avg7Day.toFixed(0)}/d`;
+      if (mPace) {
         if (avg7Day > dailyLimit) {
-          pill.style.color = 'var(--crimson)';
-          pill.style.borderColor = 'rgba(244, 63, 94, 0.3)';
-          pill.style.background = 'rgba(244, 63, 94, 0.1)';
+          const pctOver = Math.round(((avg7Day - dailyLimit) / dailyLimit) * 100);
+          mPace.textContent = `+${pctOver}% Over Cap`;
+          mPace.style.color = '#f87171';
+          mPace.style.background = 'rgba(244, 63, 94, 0.15)';
+          mPace.style.border = '1px solid rgba(244, 63, 94, 0.3)';
+          if (beacon) {
+            beacon.style.background = '#f43f5e';
+            beacon.style.boxShadow = '0 0 10px #f43f5e';
+          }
         } else {
-          pill.style.color = 'var(--emerald)';
-          pill.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-          pill.style.background = 'rgba(16, 185, 129, 0.1)';
+          const pctUnder = Math.round(((dailyLimit - avg7Day) / dailyLimit) * 100);
+          mPace.textContent = `${pctUnder}% Under Cap`;
+          mPace.style.color = '#34d399';
+          mPace.style.background = 'rgba(16, 185, 129, 0.15)';
+          mPace.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          if (beacon) {
+            beacon.style.background = '#10b981';
+            beacon.style.boxShadow = '0 0 10px #10b981';
+          }
         }
       }
 
-      const capY = Math.max(12, (92 - (dailyLimit / maxVal) * 68)).toFixed(1);
+      // Base coordinate parameters
+      // Available height = 88px (from Y=18 to Y=106)
+      const capY = Math.max(16, (106 - (dailyLimit / maxVal) * 88)).toFixed(1);
 
-      let content = `
+      let defs = `
         <defs>
-          <linearGradient id="trendSpendGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.95"/>
-            <stop offset="100%" stop-color="#0284c7" stop-opacity="0.45"/>
+          <!-- Gradients for Capsule Bars -->
+          <linearGradient id="capsuleSpendGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#0284c7" stop-opacity="0.6"/>
           </linearGradient>
-          <linearGradient id="trendBreachGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#f87171" stop-opacity="0.95"/>
-            <stop offset="100%" stop-color="#b91c1c" stop-opacity="0.45"/>
+          <linearGradient id="capsuleBreachGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#fb7185" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#e11d48" stop-opacity="0.65"/>
+          </linearGradient>
+          <linearGradient id="todayAuraGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.02"/>
+          </linearGradient>
+
+          <!-- Gradients for Spline Wave -->
+          <linearGradient id="waveStrokeGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#38bdf8"/>
+            <stop offset="70%" stop-color="#0284c7"/>
+            <stop offset="100%" stop-color="#38bdf8"/>
+          </linearGradient>
+          <linearGradient id="waveAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+            <stop offset="60%" stop-color="#0284c7" stop-opacity="0.10"/>
+            <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
           </linearGradient>
         </defs>
 
-        <!-- Daily Cap Baseline -->
-        <line x1="8" y1="${capY}" x2="512" y2="${capY}" stroke="rgba(244, 63, 94, 0.45)" stroke-width="1.2" stroke-dasharray="4,3"/>
-        <text x="512" y="${Math.max(10, capY - 3)}" text-anchor="end" fill="rgba(244, 63, 94, 0.85)" font-size="9" font-family="var(--font-mono)" font-weight="600">CAP ₹${Math.round(dailyLimit)}</text>
+        <!-- Daily Cap Horizon Baseline -->
+        <line x1="12" y1="${capY}" x2="528" y2="${capY}" stroke="rgba(244, 63, 94, 0.45)" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <rect x="466" y="${Math.max(4, capY - 9)}" width="62" height="15" rx="4" fill="rgba(244, 63, 94, 0.15)" stroke="rgba(244, 63, 94, 0.3)" stroke-width="0.8"/>
+        <text x="497" y="${Math.max(15, capY + 2)}" text-anchor="middle" fill="#f87171" font-size="9" font-family="var(--font-mono)" font-weight="700">CAP ₹${Math.round(dailyLimit)}</text>
       `;
 
-      days.forEach((d, i) => {
-        const colCenter = (i * 74.28 + 37.14).toFixed(1);
-        const barX = (colCenter - 16).toFixed(1);
-        const barH = Math.max(d.spend > 0 ? (d.spend / maxVal) * 68 : 3, 3).toFixed(1);
-        const barY = (92 - barH).toFixed(1);
-        const isBreached = d.spend > dailyLimit;
-        const fill = d.spend === 0 ? 'rgba(255, 255, 255, 0.08)' : (isBreached ? 'url(#trendBreachGrad)' : 'url(#trendSpendGrad)');
-        const stroke = d.spend === 0 ? 'rgba(255, 255, 255, 0.06)' : (isBreached ? 'rgba(248, 113, 113, 0.7)' : 'rgba(56, 189, 248, 0.7)');
+      let bodyContent = '';
 
-        const textY = Math.max(13, barY - 4);
-        const textFill = isBreached ? '#f87171' : (d.spend > 0 ? '#fff' : '#64748b');
+      if (currentTrendMode === 'bars') {
+        // Mode 1: Apple & Linear FinTech Capsule Bars
+        days.forEach((d, i) => {
+          const colCenter = (i * 77.14 + 38.57).toFixed(1);
+          const barH = Math.max(d.spend > 0 ? (d.spend / maxVal) * 88 : 4, 4).toFixed(1);
+          const barY = (106 - barH).toFixed(1);
+          const isBreached = d.spend > dailyLimit;
+          const fill = d.spend === 0 ? 'rgba(255, 255, 255, 0.08)' : (isBreached ? 'url(#capsuleBreachGrad)' : 'url(#capsuleSpendGrad)');
+          const stroke = d.spend === 0 ? 'rgba(255, 255, 255, 0.08)' : (isBreached ? 'rgba(251, 113, 133, 0.8)' : 'rgba(56, 189, 248, 0.8)');
+          const textY = Math.max(12, barY - 4);
+          const textFill = isBreached ? '#f87171' : (d.spend > 0 ? '#fff' : '#64748b');
+          const ttInfo = `${d.label} (${d.dayName}): ₹${d.spend.toFixed(2)} • ${d.txCount} txs`;
 
-        content += `
-          <g class="trend-bar" onclick="onCustomDateChanged('${d.dateStr}')" style="cursor:pointer;">
-            <title>${d.label} (${d.dateStr}): ₹${d.spend.toFixed(2)} (${d.txCount} txs)</title>
-            <rect x="${barX}" y="${barY}" width="32" height="${barH}" rx="5" ry="5" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
-            <text x="${colCenter}" y="${textY}" text-anchor="middle" fill="${textFill}" font-size="10" font-family="var(--font-mono)" font-weight="600">₹${Math.round(d.spend)}</text>
-            <text x="${colCenter}" y="106" text-anchor="middle" fill="${d.isToday ? 'var(--cyan)' : '#cbd5e1'}" font-size="10" font-weight="${d.isToday ? '700' : '500'}">${d.label}</text>
-            <text x="${colCenter}" y="118" text-anchor="middle" fill="${d.isToday ? 'var(--cyan)' : '#64748b'}" font-size="9">${d.dayName}</text>
-          </g>
+          bodyContent += `
+            <g class="trend-interactive-elem" onclick="onCustomDateChanged('${d.dateStr}')" onmouseenter="showTrendTooltip('${ttInfo}')" onmouseleave="hideTrendTooltip()">
+              <!-- Track Capsule (Headroom Guide) -->
+              <rect x="${colCenter - 14}" y="16" width="28" height="90" rx="14" ry="14" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              
+              <!-- Today Ambient Aura Background -->
+              ${d.isToday ? `<rect x="${colCenter - 16}" y="14" width="32" height="94" rx="16" ry="16" fill="url(#todayAuraGrad)" stroke="rgba(56, 189, 248, 0.3)" stroke-width="1.2"/>` : ''}
+
+              <!-- Spend Capsule Fill -->
+              <rect x="${colCenter - 11}" y="${barY}" width="22" height="${barH}" rx="11" ry="11" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+
+              <!-- Amount Metric Above Bar -->
+              <text x="${colCenter}" y="${textY}" text-anchor="middle" fill="${textFill}" font-size="9.5" font-family="var(--font-mono)" font-weight="700">₹${Math.round(d.spend)}</text>
+
+              <!-- Date Badge Below Bar -->
+              ${d.isToday ? `
+                <rect x="${colCenter - 22}" y="112" width="44" height="15" rx="7.5" fill="rgba(56, 189, 248, 0.18)" stroke="rgba(56, 189, 248, 0.4)" stroke-width="0.8"/>
+                <text x="${colCenter}" y="123" text-anchor="middle" fill="var(--cyan)" font-size="9.5" font-weight="800">${d.label}</text>
+              ` : `
+                <text x="${colCenter}" y="123" text-anchor="middle" fill="#cbd5e1" font-size="9.5" font-weight="600">${d.label}</text>
+              `}
+
+              <!-- Day of Week -->
+              <text x="${colCenter}" y="138" text-anchor="middle" fill="${d.isToday ? 'var(--cyan)' : '#64748b'}" font-size="9">${d.dayName}</text>
+            </g>
+          `;
+        });
+
+      } else {
+        // Mode 2: Luminous Spline Wave & Area Glow
+        const points = days.map((d, i) => {
+          const x = Number((i * 77.14 + 38.57).toFixed(1));
+          const h = d.spend > 0 ? (d.spend / maxVal) * 88 : 0;
+          const y = Number((106 - h).toFixed(1));
+          return { x, y, d };
+        });
+
+        const splinePath = getSplinePath(points, 0.22);
+        const areaPath = `${splinePath} L ${points[points.length - 1].x} 106 L ${points[0].x} 106 Z`;
+
+        bodyContent += `
+          <!-- Area Gradient Fill -->
+          <path d="${areaPath}" fill="url(#waveAreaGrad)"/>
+
+          <!-- Glowing Spline Line -->
+          <path d="${splinePath}" fill="none" stroke="url(#waveStrokeGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         `;
-      });
 
-      svg.innerHTML = content;
+        // Data beacons and day labels
+        points.forEach((p, i) => {
+          const d = p.d;
+          const isBreached = d.spend > dailyLimit;
+          const dotColor = isBreached ? '#f43f5e' : (d.spend > 0 ? '#38bdf8' : '#64748b');
+          const ttInfo = `${d.label} (${d.dayName}): ₹${d.spend.toFixed(2)} • ${d.txCount} txs`;
+
+          bodyContent += `
+            <g class="trend-interactive-elem" onclick="onCustomDateChanged('${d.dateStr}')" onmouseenter="showTrendTooltip('${ttInfo}')" onmouseleave="hideTrendTooltip()">
+              <!-- Outer Glow Ring -->
+              <circle cx="${p.x}" cy="${p.y}" r="${d.isToday ? 7 : 5}" fill="${dotColor}" fill-opacity="0.22" stroke="${dotColor}" stroke-opacity="0.5" stroke-width="1"/>
+              
+              <!-- Inner Core Dot -->
+              <circle cx="${p.x}" cy="${p.y}" r="3" fill="${dotColor}" stroke="#ffffff" stroke-width="1"/>
+
+              <!-- Spend Label Above Point -->
+              <text x="${p.x}" y="${Math.max(12, p.y - 8)}" text-anchor="middle" fill="${isBreached ? '#f87171' : (d.spend > 0 ? '#fff' : '#64748b')}" font-size="9.5" font-family="var(--font-mono)" font-weight="700">₹${Math.round(d.spend)}</text>
+
+              <!-- Date Badge Below -->
+              ${d.isToday ? `
+                <rect x="${p.x - 22}" y="112" width="44" height="15" rx="7.5" fill="rgba(56, 189, 248, 0.18)" stroke="rgba(56, 189, 248, 0.4)" stroke-width="0.8"/>
+                <text x="${p.x}" y="123" text-anchor="middle" fill="var(--cyan)" font-size="9.5" font-weight="800">${d.label}</text>
+              ` : `
+                <text x="${p.x}" y="123" text-anchor="middle" fill="#cbd5e1" font-size="9.5" font-weight="600">${d.label}</text>
+              `}
+
+              <!-- Day of Week -->
+              <text x="${p.x}" y="138" text-anchor="middle" fill="${d.isToday ? 'var(--cyan)' : '#64748b'}" font-size="9">${d.dayName}</text>
+            </g>
+          `;
+        });
+      }
+
+      svg.innerHTML = defs + bodyContent;
     }
 
     // =========================================================================
