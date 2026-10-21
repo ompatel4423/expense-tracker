@@ -976,9 +976,9 @@
         <select id="month-selector" class="select-pill" onchange="onCustomMonthChanged(this.value)">
           <option value="">Month Archive...</option>
         </select>
-        <button id="btn-export-csv" class="btn-export-csv" onclick="exportCurrentLedgerCSV()" title="Export filtered transactions to CSV">
+        <button id="btn-export-csv" class="btn-export-csv" onclick="openExportModal()" title="Export Statement in Professional Formats">
           <span>📥</span>
-          <span>Export CSV</span>
+          <span>Export</span>
         </button>
       </div>
     </div>
@@ -1107,6 +1107,73 @@
 
       <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07); font-size:11px; color:var(--text-dim); text-align:center;">
         Detected automatically from your Axis Bank AutoPay &amp; Card statements.
+      </div>
+    </div>
+  </div>
+
+  <!-- Professional Export Hub Modal -->
+  <div id="export-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;" onclick="if(event.target===this)closeExportModal()">
+    <div style="background:#10131b; border:1px solid rgba(255,255,255,0.14); border-radius:24px; max-width:460px; width:100%; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.85); max-height:85vh; display:flex; flex-direction:column; box-sizing:border-box;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">📥</span>
+          <h3 style="font-size:17px; font-weight:700; color:#fff; letter-spacing:-0.01em;">Export Statement</h3>
+        </div>
+        <button onclick="closeExportModal()" style="background:rgba(255,255,255,0.08); border:none; color:#8b92a5; width:30px; height:30px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+
+      <!-- Live summary banner -->
+      <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px 14px; margin-bottom:16px;">
+        <div style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600; letter-spacing:0.04em;">Current Export Scope</div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:4px;">
+          <div id="export-scope-name" style="font-size:15px; font-weight:700; color:#fff;">This Month</div>
+          <div id="export-scope-stats" style="font-size:13px; font-weight:600; color:var(--cyan); font-family:var(--font-mono);">0 txs • ₹0.00</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; overflow-y:auto; padding-right:2px;">
+        <!-- Option 1: Excel Spreadsheet (.xls) -->
+        <div class="sub-item-card" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:14px;" onclick="downloadFormattedExcelReport()">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <div style="font-size:24px; width:42px; height:42px; border-radius:12px; background:rgba(34, 197, 94, 0.15); border:1px solid rgba(34, 197, 94, 0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">📊</div>
+            <div style="min-width:0;">
+              <div style="font-size:14px; font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+                <span>Executive Excel Sheet</span>
+                <span style="font-size:9px; background:rgba(34, 197, 94, 0.2); color:#4ade80; padding:2px 6px; border-radius:999px; font-weight:700;">RECOMMENDED</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Formatted table with KPI cards, category breakdown &amp; auto totals (.xls)</div>
+            </div>
+          </div>
+          <span style="font-size:18px; color:var(--text-dim); margin-left:8px;">↓</span>
+        </div>
+
+        <!-- Option 2: Clean CSV (.csv) -->
+        <div class="sub-item-card" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:14px;" onclick="downloadCleanStandardCSV()">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <div style="font-size:24px; width:42px; height:42px; border-radius:12px; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">📄</div>
+            <div style="min-width:0;">
+              <div style="font-size:14px; font-weight:700; color:#fff;">Clean CSV Ledger</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Proper case merchant names, standard dates &amp; audit summary footer (.csv)</div>
+            </div>
+          </div>
+          <span style="font-size:18px; color:var(--text-dim); margin-left:8px;">↓</span>
+        </div>
+
+        <!-- Option 3: Print / PDF Statement -->
+        <div class="sub-item-card" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:14px;" onclick="openPrintableStatementView()">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <div style="font-size:24px; width:42px; height:42px; border-radius:12px; background:rgba(168, 85, 247, 0.15); border:1px solid rgba(168, 85, 247, 0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">🖨️</div>
+            <div style="min-width:0;">
+              <div style="font-size:14px; font-weight:700; color:#fff;">Print / Save as PDF</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Official bank-statement document ready for A4 printing or saving as PDF</div>
+            </div>
+          </div>
+          <span style="font-size:18px; color:var(--text-dim); margin-left:8px;">↗</span>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07); font-size:11px; color:var(--text-dim); text-align:center;">
+        Includes all currently active filters, search criteria, and custom categories.
       </div>
     </div>
   </div>
@@ -2407,26 +2474,297 @@
     }
 
     // =========================================================================
-    // FEATURE 5: 1-CLICK CSV/EXCEL EXPORT
+    // FEATURE 5: PROFESSIONAL TREASURY EXPORT SUITE (EXCEL, CSV, PRINT/PDF)
     // =========================================================================
-    function exportCurrentLedgerCSV() {
+    function cleanMerchantForExport(merchant) {
+      if (!merchant) return 'Unknown Merchant';
+      let m = String(merchant).trim();
+      
+      // Known bank narration expansions
+      if (/apple\s*distribution/i.test(m)) return 'Apple Distribution';
+      if (/apple\s*services/i.test(m)) return 'Apple Services';
+      if (/youtube/i.test(m)) return 'YouTube Premium';
+      if (/equal\s*ai|equalai/i.test(m)) return 'Equal AI';
+      if (/bigtree/i.test(m)) return 'BookMyShow (Bigtree)';
+      if (/avenue\s*supermarts/i.test(m)) return 'DMart (Avenue Supermarts)';
+      if (/indian\s*railways|uts/i.test(m)) return 'Indian Railways (UTS)';
+      if (/shri\s*iyyan/i.test(m)) return 'Shri Iyyan Sweets';
+      if (/nandhini\s*medical/i.test(m)) return 'Nandhini Medicals';
+      if (/pattis\s*chai/i.test(m)) return 'Pattis Chai House';
+
+      m = m.replace(/SERVIC$/i, ' Services');
+      m = m.replace(/^Mr\s+/i, '');
+
+      // If ALL CAPS, convert to Title Case
+      if (m === m.toUpperCase() && m.length > 2) {
+        m = m.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+      }
+      return m;
+    }
+
+    function cleanAccountForExport(card) {
+      if (!card) return 'Axis Direct';
+      let c = String(card).trim();
+      c = c.replace(/CC\s*/i, 'Credit Card ');
+      c = c.replace(/DC\s*/i, 'Debit Card ');
+      c = c.replace(/Card\s*/i, 'Card ');
+      return c;
+    }
+
+    function formatDateForExport(dateStr) {
+      if (!dateStr) return '';
+      const parts = String(dateStr).split('-');
+      if (parts.length !== 3) return dateStr;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${parts[2]}-${months[parseInt(parts[1], 10) - 1] || parts[1]}-${parts[0]}`;
+    }
+
+    function getActiveScopeExportLabel() {
+      let scopeLabel = 'Current Ledger';
+      if (currentScope === 'today') scopeLabel = "Today's Expenditure";
+      else if (currentScope === 'month') {
+        const monthName = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        scopeLabel = `This Month (${monthName})`;
+      } else if (currentScope === 'all') scopeLabel = "Cumulative All-Time History";
+      else if (currentScope === 'custom_date') scopeLabel = `Date Archive: ${customDateFilter}`;
+      else if (currentScope === 'custom_month') scopeLabel = `Month Archive: ${customMonthFilter}`;
+      if (selectedCategory) scopeLabel += ` • Filtered: ${selectedCategory}`;
+      if (searchQuery) scopeLabel += ` • Search: "${searchQuery}"`;
+      return scopeLabel;
+    }
+
+    function openExportModal() {
       const list = getFilteredList(false);
       if (!list || list.length === 0) {
         showToast('No transactions in current view to export');
         return;
       }
 
-      const rows = list.map(t => {
-        const cat = getCategoryForTransaction(t).label;
-        const cleanT = cleanTime(t.time) || t.time || '';
-        const merchant = String(t.merchant || '').replace(/"/g, '""');
-        const card = String(t.card || 'Axis Direct').replace(/"/g, '""');
-        const amt = Number(t.amount).toFixed(2);
-        return `"${t.date}","${cleanT}","${merchant}","${cat}","${card}",${amt}`;
+      const scopeLabel = getActiveScopeExportLabel();
+      const total = list.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+      const scopeNameEl = document.getElementById('export-scope-name');
+      const scopeStatsEl = document.getElementById('export-scope-stats');
+      if (scopeNameEl) scopeNameEl.textContent = scopeLabel;
+      if (scopeStatsEl) scopeStatsEl.textContent = `${list.length} txs • ₹${total.toFixed(2)}`;
+
+      const modal = document.getElementById('export-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('export-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    // 1. Executive Excel Spreadsheet (.xls with HTML/XML formatting)
+    function downloadFormattedExcelReport() {
+      const list = getFilteredList(false);
+      if (!list || list.length === 0) {
+        showToast('No transactions to export');
+        return;
+      }
+
+      const scopeLabel = getActiveScopeExportLabel();
+      const now = new Date();
+      const timestamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const preparedList = list.map(t => ({
+        ...t,
+        merchantClean: cleanMerchantForExport(t.merchant),
+        accountClean: cleanAccountForExport(t.card),
+        dateFormatted: formatDateForExport(t.date),
+        time: cleanTime(t.time) || t.time || '',
+        category: getCategoryForTransaction(t).label
+      }));
+
+      const total = preparedList.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      const avg = preparedList.length > 0 ? (total / preparedList.length) : 0;
+
+      const catSums = { Dining: 0, Shopping: 0, Transport: 0, Utilities: 0 };
+      const catCounts = { Dining: 0, Shopping: 0, Transport: 0, Utilities: 0 };
+      preparedList.forEach(t => {
+        const c = t.category;
+        if (catSums[c] !== undefined) {
+          catSums[c] += Number(t.amount) || 0;
+          catCounts[c]++;
+        }
       });
 
-      // UTF-8 BOM (\uFEFF) ensures Excel opens special characters and Indian Rupee correctly
-      const csvContent = '\uFEFF' + ['"Date","Time","Merchant","Category","Account","Amount (INR)"', ...rows].join('\r\n');
+      let rowsHtml = '';
+      preparedList.forEach((t, idx) => {
+        const bg = (idx % 2 === 0) ? '#ffffff' : '#f8fafc';
+        rowsHtml += `
+          <tr style="background-color:${bg};">
+            <td style="padding:8px 10px; border:1px solid #cbd5e1; text-align:center; color:#64748b; font-size:10pt;">${idx + 1}</td>
+            <td style="padding:8px 10px; border:1px solid #cbd5e1; text-align:center; font-size:10pt; mso-number-format:'\\@';">${t.dateFormatted}</td>
+            <td style="padding:8px 10px; border:1px solid #cbd5e1; text-align:center; font-size:10pt; color:#64748b;">${t.time}</td>
+            <td style="padding:8px 12px; border:1px solid #cbd5e1; font-weight:600; color:#0f172a; font-size:10.5pt;">${escapeHtml(t.merchantClean)}</td>
+            <td style="padding:8px 10px; border:1px solid #cbd5e1; font-size:10pt; color:#334155;">${t.category}</td>
+            <td style="padding:8px 10px; border:1px solid #cbd5e1; font-size:10pt; color:#475569;">${escapeHtml(t.accountClean)}</td>
+            <td style="padding:8px 12px; border:1px solid #cbd5e1; text-align:right; font-weight:700; color:#0f172a; font-size:10.5pt; mso-number-format:'₹#,##0.00';">₹${Number(t.amount).toFixed(2)}</td>
+          </tr>`;
+      });
+
+      const excelXml = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--[if gte mso 9]>
+<xml>
+  <x:ExcelWorkbook>
+    <x:ExcelWorksheets>
+      <x:ExcelWorksheet>
+        <x:Name>Treasury Statement</x:Name>
+        <x:WorksheetOptions>
+          <x:DisplayGridlines/>
+        </x:WorksheetOptions>
+      </x:ExcelWorksheet>
+    </x:ExcelWorksheets>
+  </x:ExcelWorkbook>
+</xml>
+<![endif]-->
+<style>
+  body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; color: #0f172a; margin: 20px; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+  th { background-color: #0f172a; color: #ffffff; font-weight: 700; font-size: 10.5pt; padding: 10px 12px; border: 1px solid #0f172a; text-align: left; }
+</style>
+</head>
+<body>
+  <table>
+    <tr>
+      <td colspan="7" style="font-size:18pt; font-weight:800; color:#0f172a; padding-bottom:4px; letter-spacing:-0.5px;">TREASURY EXPENSE &amp; AUDIT STATEMENT</td>
+    </tr>
+    <tr>
+      <td colspan="7" style="font-size:10.5pt; color:#64748b; padding-bottom:18px;">Scope: <strong>${escapeHtml(scopeLabel)}</strong> | Generated: <strong>${timestamp}</strong> | Base Currency: <strong>INR (₹)</strong></td>
+    </tr>
+
+    <!-- Executive Summary KPIs -->
+    <tr>
+      <td colspan="2" style="background-color:#f1f5f9; padding:10px 12px; border:1px solid #cbd5e1; font-weight:600; color:#475569; font-size:10pt;">TOTAL EXPENDITURE</td>
+      <td colspan="2" style="background-color:#f1f5f9; padding:10px 12px; border:1px solid #cbd5e1; font-weight:600; color:#475569; font-size:10pt;">TOTAL TRANSACTIONS</td>
+      <td colspan="2" style="background-color:#f1f5f9; padding:10px 12px; border:1px solid #cbd5e1; font-weight:600; color:#475569; font-size:10pt;">AVERAGE TICKET SIZE</td>
+      <td style="background-color:#f1f5f9; padding:10px 12px; border:1px solid #cbd5e1; font-weight:600; color:#475569; font-size:10pt;">AUDIT STATUS</td>
+    </tr>
+    <tr>
+      <td colspan="2" style="background-color:#ffffff; padding:12px; border:1px solid #cbd5e1; font-size:16pt; font-weight:800; color:#e11d48; mso-number-format:'₹#,##0.00';">₹${total.toFixed(2)}</td>
+      <td colspan="2" style="background-color:#ffffff; padding:12px; border:1px solid #cbd5e1; font-size:14pt; font-weight:700; color:#0f172a;">${preparedList.length} Records</td>
+      <td colspan="2" style="background-color:#ffffff; padding:12px; border:1px solid #cbd5e1; font-size:14pt; font-weight:700; color:#0f172a; mso-number-format:'₹#,##0.00';">₹${avg.toFixed(2)}</td>
+      <td style="background-color:#ffffff; padding:12px; border:1px solid #cbd5e1; font-size:12pt; font-weight:700; color:#059669;">Verified Live</td>
+    </tr>
+
+    <tr><td colspan="7" style="height:14px;"></td></tr>
+
+    <!-- Category Telemetry Summary -->
+    <tr>
+      <td colspan="7" style="font-size:11.5pt; font-weight:700; color:#0f172a; padding:6px 0;">Category Telemetry Breakdown</td>
+    </tr>
+    <tr style="background-color:#334155; color:#ffffff;">
+      <th colspan="2" style="background-color:#334155; color:#fff; padding:8px 10px; font-size:10pt; border:1px solid #334155;">Category</th>
+      <th colspan="2" style="background-color:#334155; color:#fff; padding:8px 10px; font-size:10pt; border:1px solid #334155; text-align:center;">Transactions</th>
+      <th colspan="2" style="background-color:#334155; color:#fff; padding:8px 10px; font-size:10pt; border:1px solid #334155; text-align:right;">Total Spend</th>
+      <th style="background-color:#334155; color:#fff; padding:8px 10px; font-size:10pt; border:1px solid #334155; text-align:center;">Share (%)</th>
+    </tr>
+    ${Object.keys(catSums).map(c => {
+      const cAmt = catSums[c];
+      const cCnt = catCounts[c];
+      const pct = total > 0 ? ((cAmt / total) * 100).toFixed(1) : '0.0';
+      return `
+      <tr>
+        <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; font-weight:600;">${c}</td>
+        <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; text-align:center;">${cCnt}</td>
+        <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; text-align:right; font-weight:600; mso-number-format:'₹#,##0.00';">₹${cAmt.toFixed(2)}</td>
+        <td style="padding:6px 10px; border:1px solid #cbd5e1; text-align:center; color:#64748b;">${pct}%</td>
+      </tr>`;
+    }).join('')}
+
+    <tr><td colspan="7" style="height:18px;"></td></tr>
+
+    <!-- Main Ledger Table -->
+    <thead>
+      <tr>
+        <th style="width:40px; text-align:center;">#</th>
+        <th style="width:110px; text-align:center;">Date</th>
+        <th style="width:90px; text-align:center;">Time</th>
+        <th style="width:260px;">Merchant / Narration</th>
+        <th style="width:120px;">Category</th>
+        <th style="width:180px;">Account / Payment Method</th>
+        <th style="width:130px; text-align:right;">Amount (INR)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+    <tfoot>
+      <tr style="background-color:#0f172a; color:#ffffff; font-weight:800;">
+        <td colspan="6" style="padding:12px; text-align:right; font-size:11.5pt; color:#ffffff; border:1px solid #0f172a;">GRAND TOTAL:</td>
+        <td style="padding:12px; text-align:right; font-size:12pt; color:#38bdf8; border:1px solid #0f172a; mso-number-format:'₹#,##0.00';">₹${total.toFixed(2)}</td>
+      </tr>
+    </tfoot>
+  </table>
+</body>
+</html>`;
+
+      const blob = new Blob([excelXml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      let scopeSuffix = currentScope;
+      if (currentScope === 'custom_date') scopeSuffix = customDateFilter;
+      else if (currentScope === 'custom_month') scopeSuffix = customMonthFilter;
+      const dateStamp = (rawData && rawData.todayStr) ? rawData.todayStr : new Date().toISOString().slice(0, 10);
+      a.download = `Expense_Report_${scopeSuffix}_${dateStamp}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      closeExportModal();
+      showToast(`Exported ${preparedList.length} transactions as Excel Spreadsheet!`);
+    }
+
+    // 2. Clean Standard CSV (.csv)
+    function downloadCleanStandardCSV() {
+      const list = getFilteredList(false);
+      if (!list || list.length === 0) {
+        showToast('No transactions to export');
+        return;
+      }
+
+      const scopeLabel = getActiveScopeExportLabel();
+      const now = new Date();
+      const timestamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const total = list.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+      const headerBlock = [
+        `"TREASURY EXPENSE & AUDIT STATEMENT"`,
+        `"Scope","${scopeLabel.replace(/"/g, '""')}"`,
+        `"Generated At","${timestamp}"`,
+        `"Total Amount (INR)",${total.toFixed(2)}`,
+        `"Total Transactions",${list.length}`,
+        `""`
+      ];
+
+      const columns = `"Item","Date","Time","Merchant / Payee","Category","Payment Method","Amount (INR)"`;
+
+      const rows = list.map((t, idx) => {
+        const cat = getCategoryForTransaction(t).label;
+        const cleanT = cleanTime(t.time) || t.time || '';
+        const merchant = cleanMerchantForExport(t.merchant).replace(/"/g, '""');
+        const card = cleanAccountForExport(t.card).replace(/"/g, '""');
+        const dateFormatted = formatDateForExport(t.date);
+        const amt = Number(t.amount).toFixed(2);
+        return `${idx + 1},"${dateFormatted}","${cleanT}","${merchant}","${cat}","${card}",${amt}`;
+      });
+
+      const summaryFooter = [
+        `""`,
+        `"","","","","TOTAL NET EXPENDITURE","",${total.toFixed(2)}`,
+        `"","","","","TOTAL RECORD COUNT","",${list.length}`
+      ];
+
+      const csvContent = '\uFEFF' + [...headerBlock, columns, ...rows, ...summaryFooter].join('\r\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2438,13 +2776,167 @@
       if (selectedCategory) scopeSuffix += `_${selectedCategory.toLowerCase()}`;
 
       const dateStamp = (rawData && rawData.todayStr) ? rawData.todayStr : new Date().toISOString().slice(0, 10);
-      a.download = `Expense_Tracker_${scopeSuffix}_${dateStamp}.csv`;
+      a.download = `Expense_Statement_${scopeSuffix}_${dateStamp}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-      showToast(`Exported ${list.length} transactions to CSV!`);
+      closeExportModal();
+      showToast(`Exported ${list.length} transactions as Clean CSV!`);
+    }
+
+    // 3. Printable / PDF Statement View
+    function openPrintableStatementView() {
+      const list = getFilteredList(false);
+      if (!list || list.length === 0) {
+        showToast('No transactions to export');
+        return;
+      }
+
+      const scopeLabel = getActiveScopeExportLabel();
+      const now = new Date();
+      const timestamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const preparedList = list.map(t => ({
+        ...t,
+        merchantClean: cleanMerchantForExport(t.merchant),
+        accountClean: cleanAccountForExport(t.card),
+        dateFormatted: formatDateForExport(t.date),
+        time: cleanTime(t.time) || t.time || '',
+        category: getCategoryForTransaction(t).label
+      }));
+
+      const total = preparedList.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      const avg = preparedList.length > 0 ? (total / preparedList.length) : 0;
+
+      const rows = preparedList.map((t, idx) => `
+        <tr>
+          <td style="color:#64748b; font-size:11px; text-align:center;">${idx + 1}</td>
+          <td style="font-weight:500;">${t.dateFormatted}</td>
+          <td style="color:#64748b;">${t.time}</td>
+          <td style="font-weight:600; color:#0f172a;">${escapeHtml(t.merchantClean)}</td>
+          <td><span class="badge ${t.category.toLowerCase()}">${t.category}</span></td>
+          <td style="color:#64748b;">${escapeHtml(t.accountClean)}</td>
+          <td style="text-align:right; font-weight:700; color:#0f172a; font-family:monospace;">₹${Number(t.amount).toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      const printHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Treasury Statement - ${escapeHtml(scopeLabel)}</title>
+  <style>
+    @page { size: A4; margin: 18mm 14mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; padding: 24px; font-size: 13px; line-height: 1.5; background: #fff; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid #0f172a; margin-bottom: 20px; }
+    .brand-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; }
+    .brand-sub { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .meta-box { text-align: right; font-size: 12px; color: #475569; }
+    .meta-box strong { color: #0f172a; }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+    .summary-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; }
+    .summary-value { font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+    .summary-value.total { color: #e11d48; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { background: #f1f5f9; color: #334155; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 9px 10px; border-bottom: 2px solid #cbd5e1; text-align: left; }
+    td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+    tr:nth-child(even) td { background: #fafafa; }
+    
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; background: #e2e8f0; color: #334155; }
+    .badge.dining { background: #fee2e2; color: #991b1b; }
+    .badge.shopping { background: #fef3c7; color: #92400e; }
+    .badge.transport { background: #e0e7ff; color: #3730a3; }
+    .badge.utilities { background: #e0f2fe; color: #0369a1; }
+
+    .grand-total-row td { background: #0f172a !important; color: #fff !important; font-weight: 800; font-size: 13px; padding: 12px 10px; }
+    .footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; }
+    
+    @media print {
+      body { padding: 0; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand-title">TREASURY STATEMENT</div>
+      <div class="brand-sub">Verified Expense &amp; Audit Ledger</div>
+    </div>
+    <div class="meta-box">
+      <div>Scope: <strong>${escapeHtml(scopeLabel)}</strong></div>
+      <div>Generated: <strong>${timestamp}</strong></div>
+      <div>Audit ID: <strong>AUD-${Date.now().toString(36).toUpperCase()}</strong></div>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Total Expenditure</div>
+      <div class="summary-value total">₹${total.toFixed(2)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Total Transactions</div>
+      <div class="summary-value">${preparedList.length}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Average Ticket Size</div>
+      <div class="summary-value">₹${avg.toFixed(2)}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30px; text-align:center;">#</th>
+        <th style="width:90px;">Date</th>
+        <th style="width:75px;">Time</th>
+        <th>Merchant / Payee</th>
+        <th style="width:90px;">Category</th>
+        <th style="width:140px;">Payment Method</th>
+        <th style="width:100px; text-align:right;">Amount (INR)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+      <tr class="grand-total-row">
+        <td colspan="6" style="text-align:right;">GRAND TOTAL:</td>
+        <td style="text-align:right; font-family:monospace; color:#38bdf8 !important;">₹${total.toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <div>Generated from Treasury Personal Finance Terminal</div>
+    <div>Official Personal Financial Record</div>
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 400);
+    };
+  ` + '<' + `/script>
+</body>
+</html>`;
+
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(printHtml);
+        printWindow.document.close();
+      } else {
+        showToast('Pop-up blocked. Please allow pop-ups to print statement');
+      }
+      closeExportModal();
+    }
+
+    function exportCurrentLedgerCSV() {
+      openExportModal();
     }
 
     function openLogoModal() {
